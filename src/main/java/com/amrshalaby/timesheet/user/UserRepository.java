@@ -10,7 +10,11 @@ import java.util.Optional;
 @JdbcRepository(dialect = Dialect.MYSQL)
 public interface UserRepository extends CrudRepository<AppUser, Long> {
     Optional<AppUser> findByEmail(String email);
+
     long countByRole(UserRole role);
+
     List<AppUser> findByManagerId(Long managerId);
-    @Query("SELECT COUNT(*) FROM `user`") long countUsers();
+
+    @Query("SELECT COUNT(*) FROM `user`")
+    long countUsers();
 }

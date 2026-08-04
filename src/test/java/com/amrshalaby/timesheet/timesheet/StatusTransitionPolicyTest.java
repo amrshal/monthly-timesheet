@@ -1,3 +1,25 @@
 package com.amrshalaby.timesheet.timesheet;
-import static org.junit.jupiter.api.Assertions.*; import com.amrshalaby.timesheet.user.UserRole; import org.junit.jupiter.api.Test;
-class StatusTransitionPolicyTest { @Test void validTransitions(){ assertTrue(StatusTransitionPolicy.canSubmit(TimesheetStatus.DRAFT,UserRole.EMPLOYEE,true)); assertTrue(StatusTransitionPolicy.canApprove(TimesheetStatus.SUBMITTED,UserRole.MANAGER,true)); assertTrue(StatusTransitionPolicy.canReopen(TimesheetStatus.SUBMITTED,UserRole.MANAGER,true)); assertTrue(StatusTransitionPolicy.canReopen(TimesheetStatus.APPROVED,UserRole.ADMIN,true)); } @Test void invalidTransitions(){ assertFalse(StatusTransitionPolicy.canApprove(TimesheetStatus.DRAFT,UserRole.MANAGER,true)); assertFalse(StatusTransitionPolicy.canReopen(TimesheetStatus.APPROVED,UserRole.MANAGER,true)); assertFalse(StatusTransitionPolicy.canSubmit(TimesheetStatus.SUBMITTED,UserRole.ADMIN,true)); assertFalse(StatusTransitionPolicy.canApprove(TimesheetStatus.SUBMITTED,UserRole.EMPLOYEE,true)); } }
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.amrshalaby.timesheet.user.UserRole;
+import org.junit.jupiter.api.Test;
+
+class StatusTransitionPolicyTest {
+    @Test
+    void validTransitions() {
+        assertTrue(StatusTransitionPolicy.canSubmit(TimesheetStatus.DRAFT, UserRole.EMPLOYEE, true));
+        assertTrue(StatusTransitionPolicy.canApprove(TimesheetStatus.SUBMITTED, UserRole.MANAGER, true));
+        assertTrue(StatusTransitionPolicy.canReopen(TimesheetStatus.SUBMITTED, UserRole.MANAGER, true));
+        assertTrue(StatusTransitionPolicy.canReopen(TimesheetStatus.APPROVED, UserRole.ADMIN, true));
+    }
+
+    @Test
+    void invalidTransitions() {
+        assertFalse(StatusTransitionPolicy.canApprove(TimesheetStatus.DRAFT, UserRole.MANAGER, true));
+        assertFalse(StatusTransitionPolicy.canReopen(TimesheetStatus.APPROVED, UserRole.MANAGER, true));
+        assertFalse(StatusTransitionPolicy.canSubmit(TimesheetStatus.SUBMITTED, UserRole.ADMIN, true));
+        assertFalse(StatusTransitionPolicy.canApprove(TimesheetStatus.SUBMITTED, UserRole.EMPLOYEE, true));
+    }
+}

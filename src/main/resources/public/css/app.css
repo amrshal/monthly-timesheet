@@ -1,1 +1,71 @@
-:root{--mts-primary:#0d6efd;--mts-border:#dee2e6;--mts-muted:#f2f4f7;--mts-weekend:#fff8e1;--mts-focus:#111827}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;color:#1f2937}.container{max-width:1200px;margin:0 auto;padding:1rem}.timesheet-scroll{overflow-x:auto}.timesheet-grid{border-collapse:collapse;min-width:1050px;width:100%}.timesheet-grid th,.timesheet-grid td{border:1px solid var(--mts-border);padding:.5rem;vertical-align:top}.timesheet-grid th{background:#f8f9fa}.timesheet-grid td:nth-child(7),.timesheet-grid td:nth-child(8){background:var(--mts-weekend)}.timesheet-grid .muted{background:var(--mts-muted);color:#6b7280}.timesheet-grid label{display:block;font-size:.85rem}.timesheet-grid input{max-width:5.5rem}.note-button{display:inline-block;margin-top:.25rem}button:focus,input:focus,a:focus{outline:3px solid var(--mts-focus);outline-offset:2px}
+:root {
+    --mts-primary: #0d6efd;
+    --mts-border: #dee2e6;
+    --mts-muted: #f2f4f7;
+    --mts-weekend: #fff8e1;
+    --mts-focus: #111827;
+}
+
+body {
+    color: #1f2937;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0;
+}
+
+.container {
+    margin: 0 auto;
+    max-width: 1200px;
+    padding: 1rem;
+}
+
+.timesheet-scroll {
+    overflow-x: auto;
+}
+
+.timesheet-grid {
+    border-collapse: collapse;
+    min-width: 1050px;
+    width: 100%;
+}
+
+.timesheet-grid th,
+.timesheet-grid td {
+    border: 1px solid var(--mts-border);
+    padding: 0.5rem;
+    vertical-align: top;
+}
+
+.timesheet-grid th {
+    background: #f8f9fa;
+}
+
+.timesheet-grid td:nth-child(7),
+.timesheet-grid td:nth-child(8) {
+    background: var(--mts-weekend);
+}
+
+.timesheet-grid .muted {
+    background: var(--mts-muted);
+    color: #6b7280;
+}
+
+.timesheet-grid label {
+    display: block;
+    font-size: 0.85rem;
+}
+
+.timesheet-grid input {
+    max-width: 5.5rem;
+}
+
+.note-button {
+    display: inline-block;
+    margin-top: 0.25rem;
+}
+
+button:focus,
+input:focus,
+a:focus {
+    outline: 3px solid var(--mts-focus);
+    outline-offset: 2px;
+}

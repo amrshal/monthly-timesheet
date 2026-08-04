@@ -1,1 +1,64 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><head><title>Timesheet</title><link rel="stylesheet" href="/css/app.css"></head><body><main class="container"><h1>Monthly timesheet</h1><p>Status: <strong th:text="${status}">DRAFT</strong></p><div class="timesheet-scroll"><table class="timesheet-grid"><thead><tr><th>Week</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th><th>Saturday</th><th>Sunday</th><th>Total</th></tr></thead><tbody><tr th:each="week,iter : ${grid.weeks}"><th th:text="${iter.index + 1}">1</th><td th:each="day : ${week.days}" th:classappend="${day.inMonth} ? '' : ' muted' "><span th:text="${#temporals.format(day.date, 'd E')}">1 Mon</span><label th:if="${day.inMonth}">Duration <input type="text" inputmode="numeric" pattern="[0-9:]*" placeholder="HH:MM"></label><button th:if="${day.inMonth}" type="button" class="note-button" aria-label="Open note editor">♡ Note</button></td><td>00:00</td></tr></tbody><tfoot><tr><th colspan="8">Month total</th><td th:text="${monthlyTotal}">00:00</td></tr></tfoot></table></div></main><script src="/css/app.js"></script></body></html>
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Timesheet</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<main class="container">
+    <h1>Monthly timesheet</h1>
+    <p>
+        Status:
+        <strong th:text="${status}">DRAFT</strong>
+    </p>
+
+    <div class="timesheet-scroll">
+        <table class="timesheet-grid">
+            <thead>
+            <tr>
+                <th>Week</th>
+                <th>Monday</th>
+                <th>Tuesday</th>
+                <th>Wednesday</th>
+                <th>Thursday</th>
+                <th>Friday</th>
+                <th>Saturday</th>
+                <th>Sunday</th>
+                <th>Total</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="week, iter : ${grid.weeks}">
+                <th th:text="${iter.index + 1}">1</th>
+                <td th:each="day : ${week.days}" th:classappend="${day.inMonth} ? '' : ' muted'">
+                    <span th:text="${#temporals.format(day.date, 'd E')}">1 Mon</span>
+                    <label th:if="${day.inMonth}">
+                        Duration
+                        <input type="text" inputmode="numeric" pattern="[0-9:]*" placeholder="HH:MM">
+                    </label>
+                    <button
+                        th:if="${day.inMonth}"
+                        type="button"
+                        class="note-button"
+                        aria-label="Open note editor"
+                    >
+                        ♡ Note
+                    </button>
+                </td>
+                <td>00:00</td>
+            </tr>
+            </tbody>
+            <tfoot>
+            <tr>
+                <th colspan="8">Month total</th>
+                <td th:text="${monthlyTotal}">00:00</td>
+            </tr>
+            </tfoot>
+        </table>
+    </div>
+</main>
+<script src="/css/app.js"></script>
+</body>
+</html>
