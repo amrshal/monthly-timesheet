@@ -1,0 +1,31 @@
+package com.amrshalaby.timesheet.common;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class DurationFormatTest {
+    @Test
+    void parsesAcceptedInputs() {
+        assertEquals(480, DurationFormat.parse("8").orElseThrow());
+        assertEquals(480, DurationFormat.parse("8:00").orElseThrow());
+        assertEquals(450, DurationFormat.parse("07:30").orElseThrow());
+        assertTrue(DurationFormat.parse(" ").isEmpty());
+    }
+
+    @Test
+    void rejectsInvalidInputs() {
+        assertThrows(IllegalArgumentException.class, () -> DurationFormat.parse("24:01"));
+        assertThrows(IllegalArgumentException.class, () -> DurationFormat.parse("7:99"));
+        assertThrows(IllegalArgumentException.class, () -> DurationFormat.parse("abc"));
+    }
+
+    @Test
+    void formatsCanonical() {
+        assertEquals("07:30", DurationFormat.format(450));
+        assertEquals("24:00", DurationFormat.format(1440));
+        assertEquals("", DurationFormat.format(null));
+    }
+}

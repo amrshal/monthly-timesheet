@@ -1,0 +1,63 @@
+micronaut:
+  application:
+    name: monthly-timesheet
+  server:
+    port: ${HTTP_PORT:8080}
+  router:
+    static-resources:
+      css:
+        paths: classpath:public/css
+        mapping: /css/**
+  security:
+    authentication: session
+    redirect:
+      login-success: /timesheets
+      login-failure: /login?error=true
+    endpoints:
+      login:
+        enabled: true
+      logout:
+        enabled: true
+    intercept-url-map:
+      - pattern: /css/**
+        access: isAnonymous()
+      - pattern: /health
+        access: isAnonymous()
+      - pattern: /login
+        access: isAnonymous()
+      - pattern: /**
+        access: isAuthenticated()
+    csrf:
+      enabled: true
+    token:
+      cookie:
+        enabled: true
+    session:
+      http-session:
+        enabled: true
+  views:
+    thymeleaf:
+      enabled: true
+
+datasources:
+  default:
+    url: ${JDBC_URL:`jdbc:mysql://localhost:3306/monthly_timesheet?sslMode=${DB_SSL_MODE:DISABLED}`}
+    username: ${JDBC_USER:timesheet}
+    password: ${JDBC_PASSWORD:timesheet}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    maximum-pool-size: ${JDBC_MAX_POOL_SIZE:5}
+
+db:
+  ssl-mode: ${DB_SSL_MODE:DISABLED}
+
+flyway:
+  datasources:
+    default:
+      enabled: true
+
+app:
+  timezone: ${APP_TIMEZONE:Europe/London}
+  initial-admin:
+    email: ${INITIAL_ADMIN_EMAIL:}
+    password: ${INITIAL_ADMIN_PASSWORD:}
+    name: ${INITIAL_ADMIN_NAME:}
