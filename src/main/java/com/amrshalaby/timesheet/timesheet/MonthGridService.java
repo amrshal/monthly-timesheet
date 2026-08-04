@@ -11,21 +11,36 @@ import java.util.List;
 @Singleton
 public final class MonthGridService {
     public MonthGrid build(int year, int month) {
-        YearMonth ym = YearMonth.of(year, month);
-        LocalDate first = ym.atDay(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate last = ym.atEndOfMonth().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate firstGridDate = yearMonth.atDay(1)
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate lastGridDate = yearMonth.atEndOfMonth()
+            .with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+
         List<WeekRow> weeks = new ArrayList<>();
-        for (LocalDate day = first; !day.isAfter(last); day = day.plusWeeks(1)) {
-            List<DayCell> days = new ArrayList<>();
-            for (int i = 0; i < 7; i++) {
-                LocalDate date = day.plusDays(i);
-                days.add(new DayCell(date, date.getMonthValue() == month));
-            }
-            weeks.add(new WeekRow(days));
+        for (LocalDate day = firstGridDate; !day.isAfter(lastGridDate); day = day.plusWeeks(1)) {
+            weeks.add(buildWeek(day, month));
         }
-        return new MonthGrid(ym, weeks);
+
+        return new MonthGrid(yearMonth, weeks);
     }
-    public record MonthGrid(YearMonth month, List<WeekRow> weeks) {}
-    public record WeekRow(List<DayCell> days) {}
-    public record DayCell(LocalDate date, boolean inMonth) {}
+
+    private WeekRow buildWeek(LocalDate monday, int selectedMonth) {
+        List<DayCell> days = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            LocalDate date = monday.plusDays(i);
+            days.add(new DayCell(date, date.getMonthValue() == selectedMonth));
+        }
+
+        return new WeekRow(days);
+    }
+
+    public record MonthGrid(YearMonth month, List<WeekRow> weeks) {
+    }
+
+    public record WeekRow(List<DayCell> days) {
+    }
+
+    public record DayCell(LocalDate date, boolean inMonth) {
+    }
 }

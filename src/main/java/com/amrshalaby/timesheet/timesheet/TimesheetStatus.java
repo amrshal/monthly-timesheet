@@ -1,3 +1,7 @@
 package com.amrshalaby.timesheet.timesheet;
 
-public enum TimesheetStatus { DRAFT, SUBMITTED, APPROVED }
+public enum TimesheetStatus {
+    DRAFT,
+    SUBMITTED,
+    APPROVED
+}

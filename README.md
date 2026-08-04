@@ -16,7 +16,10 @@ Server-rendered monthly timesheet application for fewer than ten employees.
 
 ## Current implementation notes
 
-This branch lays down the application foundation: Micronaut configuration, Flyway schema, core duration/month-grid/status policy code, server-rendered placeholder pages, Docker assets, and focused unit tests. The remaining production workflows should continue in small slices following `SPECIFICATION.md`.
+This branch lays down the application foundation: Micronaut configuration, Flyway schema,
+core duration/month-grid/status policy code, server-rendered placeholder pages, Docker assets,
+and focused unit tests. The remaining production workflows should continue in small slices
+following `SPECIFICATION.md`.
 
 Decisions made while implementing without further input:
 
@@ -90,5 +93,6 @@ docker run -d \
 
 ## Known limitations in this implementation slice
 
-- Full authentication provider, password hashing, administrator/manager CRUD screens, monthly save workflow, workflow POST actions, and integration/security tests are not yet complete.
+- Full authentication provider, password hashing, administrator/manager CRUD screens, monthly
+  save workflow, workflow POST actions, and integration/security tests are not yet complete.
 - Maven dependency resolution could not complete in the current environment because Maven Central returned HTTP 403 from the network tunnel.
