@@ -13,7 +13,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <micronaut.version>4.9.1</micronaut.version>
+        <micronaut.version>4.10.17</micronaut.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

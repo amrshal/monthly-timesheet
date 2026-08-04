@@ -5,7 +5,7 @@ Server-rendered monthly timesheet application for fewer than ten employees.
 ## Stack
 
 - Java 21
-- Micronaut 4
+- Micronaut 4.10.17 platform line
 - Maven
 - Thymeleaf
 - Micronaut Data JDBC
@@ -13,6 +13,12 @@ Server-rendered monthly timesheet application for fewer than ten employees.
 - MySQL 8 / DigitalOcean Managed MySQL
 - MySQL Testcontainers for integration testing
 - Docker
+
+## Version note
+
+Micronaut Framework 5.1.0 is the latest overall Micronaut major release as of August 2026.
+This project remains on the latest Micronaut 4 platform line because `SPECIFICATION.md`
+requires Micronaut 4.
 
 ## Current implementation notes
 
