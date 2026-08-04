@@ -1,0 +1,3 @@
+package com.amrshalaby.timesheet.audit;
+import jakarta.inject.Singleton; import java.time.Clock; import java.time.Instant;
+@Singleton public class AuditService { private final AuditEventRepository repo; public AuditService(AuditEventRepository repo){this.repo=repo;} public void record(Long actor, Long subject, String type, String entity, Long entityId, String json){ AuditEvent e=new AuditEvent(); e.setEventTime(Instant.now(Clock.systemUTC())); e.setActorUserId(actor); e.setSubjectUserId(subject); e.setEventType(type); e.setEntityType(entity); e.setEntityId(entityId); e.setDetailsJson(json); repo.save(e);} }
