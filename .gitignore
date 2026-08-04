@@ -1,8 +1,14 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
 ### IntelliJ IDEA ###
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 .kotlin
+.idea
+/monthly-timesheet.iml
+*.iml
 
 ### Eclipse ###
 .apt_generated
@@ -28,5 +34,7 @@ bin/
 
 ### Mac OS ###
 .DS_Store
-.idea
-/monthly-timesheet.iml
+Thumbs.db
+
+# Logs
+*.log
