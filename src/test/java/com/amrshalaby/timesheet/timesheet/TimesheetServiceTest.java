@@ -67,6 +67,38 @@ class TimesheetServiceTest {
         assertEquals(0, entries.findByTimesheetId(10L).size());
     }
 
+    @Test
+    void invalidEntryPreservesFieldErrorsAndDoesNotPartiallySave() {
+        InMemoryMonthlyTimesheetRepository timesheets = new InMemoryMonthlyTimesheetRepository();
+        InMemoryDailyTimeEntryRepository entries = new InMemoryDailyTimeEntryRepository();
+        TimesheetService service = service(timesheets, entries, new InMemoryAuditEventRepository());
+
+        MonthlyTimesheet timesheet = timesheet(10L, 2026, 8, 4L);
+        TimesheetValidationException exception = assertThrows(
+            TimesheetValidationException.class,
+            () -> service.saveEmployeeDraft(
+                user(1L, UserRole.EMPLOYEE, null),
+                user(1L, UserRole.EMPLOYEE, null),
+                timesheet,
+                new SaveTimesheetCommand(
+                    2026,
+                    8,
+                    4L,
+                    List.of(
+                        new DailyEntryCommand(LocalDate.of(2026, 8, 5), "08:00", ""),
+                        new DailyEntryCommand(LocalDate.of(2026, 8, 6), "25:00", "")
+                    )
+                )
+            )
+        );
+
+        assertEquals(
+            "Enter a duration from 00:00 to 24:00.",
+            exception.fieldErrors().get("duration_2026-08-06")
+        );
+        assertEquals(0, entries.findByTimesheetId(10L).size());
+    }
+
     private TimesheetService service(
         MonthlyTimesheetRepository timesheets,
         DailyTimeEntryRepository entries,

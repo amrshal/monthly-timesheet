@@ -47,26 +47,46 @@
                             Duration
                             <input
                                 th:name="${'duration_' + day.date}"
+                                th:id="${'duration_' + day.date}"
                                 type="text"
                                 inputmode="numeric"
                                 pattern="[0-9:]*"
                                 placeholder="HH:MM"
                                 th:value="${durations.get(day.date)}"
                                 th:readonly="${!canEdit}"
+                                th:attr="aria-invalid=${fieldErrors.containsKey('duration_' + day.date)},aria-describedby=${fieldErrors.containsKey('duration_' + day.date) ? 'error_duration_' + day.date : null}"
                             >
                         </label>
+                        <p
+                            class="field-error"
+                            th:if="${fieldErrors.containsKey('duration_' + day.date)}"
+                            th:id="${'error_duration_' + day.date}"
+                            th:text="${fieldErrors.get('duration_' + day.date)}"
+                        >Duration error</p>
                         <button
                             th:if="${day.inMonth}"
                             type="button"
                             class="note-button"
-                            th:attr="aria-expanded='false',aria-controls=${'note_' + day.date}"
+                            th:attr="aria-expanded='false',aria-controls=${'note_' + day.date},aria-label=${notes.get(day.date)} == null ? 'Edit note for ' + day.date : 'Edit existing note for ' + day.date"
                         >
-                            <span th:text="${notes.get(day.date)} == null ? '♡ Note' : '♥ Note present'">♡ Note</span>
+                            <span th:text="${notes.get(day.date)} == null ? 'Note' : 'Note present'">Note</span>
                         </button>
                         <label th:if="${day.inMonth}" class="note-editor" th:id="${'note_' + day.date}">
                             Note
-                            <textarea th:name="${'note_' + day.date}" maxlength="1000" th:text="${notes.get(day.date)}"></textarea>
+                            <textarea
+                                th:name="${'note_' + day.date}"
+                                maxlength="1000"
+                                th:readonly="${!canEdit}"
+                                th:attr="aria-invalid=${fieldErrors.containsKey('note_' + day.date)},aria-describedby=${fieldErrors.containsKey('note_' + day.date) ? 'error_note_' + day.date : null}"
+                                th:text="${notes.get(day.date)}"
+                            ></textarea>
                         </label>
+                        <p
+                            class="field-error"
+                            th:if="${fieldErrors.containsKey('note_' + day.date)}"
+                            th:id="${'error_note_' + day.date}"
+                            th:text="${fieldErrors.get('note_' + day.date)}"
+                        >Note error</p>
                     </td>
                     <td th:text="${weeklyTotals.get(iter.index)}">00:00</td>
                 </tr>
@@ -87,15 +107,23 @@
             method="post"
             th:if="${canSubmit}"
             th:action="${submitAction}"
+            th:attr="data-confirm-message=${'Submit ' + subject.displayName + ' for ' + grid.month + '? Total: ' + monthlyTotal + ', recorded days: ' + recordedDays + '. Employee editing will be locked.'}"
         >
             <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
+            <p class="confirmation-detail">
+                Submit <strong th:text="${subject.displayName}">Employee</strong>
+                for <strong th:text="${grid.month}">2026-08</strong>.
+                Total: <strong th:text="${monthlyTotal}">00:00</strong>.
+                Recorded days: <strong th:text="${recordedDays}">0</strong>.
+                Employee editing will be locked.
+            </p>
             <button type="submit">Submit</button>
         </form>
-        <form method="post" th:if="${canApprove}" th:action="${approveAction}">
+        <form method="post" th:if="${canApprove}" th:action="${approveAction}" data-confirm-message="Approve this submitted timesheet?">
             <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
             <button type="submit">Approve</button>
         </form>
-        <form method="post" th:if="${canReopen}" th:action="${reopenAction}">
+        <form method="post" th:if="${canReopen}" th:action="${reopenAction}" data-confirm-message="Reopen this timesheet to Draft?">
             <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
             <label>
                 Reopen reason
@@ -103,6 +131,28 @@
             </label>
             <button type="submit">Reopen</button>
         </form>
+    </section>
+
+    <section>
+        <h2>Audit history</h2>
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Time</th>
+                <th>Actor</th>
+                <th>Event</th>
+                <th>Details</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="event : ${auditEvents}">
+                <td th:text="${event.eventTime}">Time</td>
+                <td th:text="${event.actorUserId}">Actor</td>
+                <td th:text="${event.eventType}">Event</td>
+                <td><code th:text="${event.detailsJson}">{}</code></td>
+            </tr>
+            </tbody>
+        </table>
     </section>
 </main>
 <script src="/css/app.js"></script>

@@ -32,6 +32,8 @@ Decisions made while implementing without further input:
 - User registration: no public self-registration; administrators create users.
 - Manager-created employees are disabled by default and can be enabled with
   `APP_MANAGER_USER_CREATION_ENABLED=true` if the product decision changes.
+- Password minimum length defaults to 12 characters and can be changed with
+  `PASSWORD_MINIMUM_LENGTH`.
 - Local Docker Compose is provided only for development.
 
 ## Local development
@@ -99,9 +101,9 @@ docker run -d \
 
 ## Known limitations in this implementation slice
 
-- Full field-level validation rendering is not complete; invalid submissions currently use a generic error page.
+- Field-level validation currently covers monthly timesheet entry errors; user administration errors still use a generic error page.
 - End-to-end security tests for CSRF, direct object-reference attacks, disabled users, and complete workflow scenarios are still incomplete.
-- Admin audit filtering is still basic and should be expanded to actor, subject, event type, timesheet, and date-range filters.
+- Admin audit filtering exists for actor, subject, event type, timesheet, and date range, but is intentionally simple and should move to repository queries if the log grows.
 - Docker image startup against a clean external MySQL instance still needs to be exercised before calling the application complete.
 
 ## Backup and restore

@@ -5,10 +5,12 @@ import com.amrshalaby.timesheet.timesheet.MonthlyTimesheet;
 import com.amrshalaby.timesheet.timesheet.MonthlyTimesheetRepository;
 import com.amrshalaby.timesheet.timesheet.TimesheetController;
 import com.amrshalaby.timesheet.timesheet.TimesheetService;
+import com.amrshalaby.timesheet.timesheet.TimesheetValidationException;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.AuthorisationService;
 import com.amrshalaby.timesheet.user.UserService;
 import com.amrshalaby.timesheet.web.ViewModel;
+import io.micronaut.context.annotation.Value;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.annotation.Body;
@@ -17,9 +19,11 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.session.Session;
+import io.micronaut.views.ModelAndView;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.Map;
 
@@ -32,6 +36,7 @@ public class AdminTimesheetController {
     private final TimesheetService timesheetService;
     private final TimesheetController timesheetController;
     private final UserService userService;
+    private final ZoneId businessZone;
 
     public AdminTimesheetController(
         CurrentUserService currentUserService,
@@ -39,7 +44,8 @@ public class AdminTimesheetController {
         MonthlyTimesheetRepository timesheetRepository,
         TimesheetService timesheetService,
         TimesheetController timesheetController,
-        UserService userService
+        UserService userService,
+        @Value("${app.timezone:Europe/London}") String businessTimezone
     ) {
         this.currentUserService = currentUserService;
         this.authorisationService = authorisationService;
@@ -47,6 +53,7 @@ public class AdminTimesheetController {
         this.timesheetService = timesheetService;
         this.timesheetController = timesheetController;
         this.userService = userService;
+        this.businessZone = ZoneId.of(businessTimezone);
     }
 
     @Get
@@ -69,7 +76,7 @@ public class AdminTimesheetController {
                 "timesheet", timesheet
             ), session);
         }
-        YearMonth now = YearMonth.now();
+        YearMonth now = YearMonth.now(businessZone);
         return ViewModel.withCsrf(Map.of(
             "title", "Timesheet administration",
             "message", "Select an employee and month to open or create a timesheet.",
@@ -87,14 +94,28 @@ public class AdminTimesheetController {
     }
 
     @Post("/{timesheetId}")
-    public HttpResponse<?> save(Principal principal, Long timesheetId, @Body Map<String, String> formValues) {
+    public HttpResponse<?> save(Principal principal, Long timesheetId, @Body Map<String, String> formValues, Session session) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.savePrivileged(
-            context.actor(),
-            context.subject(),
-            context.timesheet(),
-            timesheetController.formCommand(context.timesheet().getYear(), context.timesheet().getMonth(), formValues)
-        );
+        try {
+            timesheetService.savePrivileged(
+                context.actor(),
+                context.subject(),
+                context.timesheet(),
+                timesheetController.formCommand(context.timesheet().getYear(), context.timesheet().getMonth(), formValues)
+            );
+        } catch (TimesheetValidationException exception) {
+            return HttpResponse.badRequest(new ModelAndView<>(
+                "timesheet",
+                timesheetController.timesheetModel(
+                    context.actor(),
+                    context.subject(),
+                    context.timesheet(),
+                    session,
+                    exception.command(),
+                    exception.fieldErrors()
+                )
+            ));
+        }
         return redirect(timesheetId);
     }
 

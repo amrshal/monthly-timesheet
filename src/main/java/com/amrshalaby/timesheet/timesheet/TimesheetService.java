@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -174,6 +175,7 @@ public class TimesheetService {
     private List<PrivilegedChange> saveEntries(MonthlyTimesheet timesheet, SaveTimesheetCommand command) {
         validateCommandMatchesTimesheet(timesheet, command);
         validateExpectedVersion(timesheet, command);
+        validateEntries(command);
         Map<LocalDate, DailyTimeEntry> existing = existingEntries(timesheet.getId());
         List<PrivilegedChange> changes = new ArrayList<>();
 
@@ -273,6 +275,32 @@ public class TimesheetService {
     private void validateWorkDate(int year, int month, LocalDate workDate) {
         if (workDate == null || !YearMonth.of(year, month).equals(YearMonth.from(workDate))) {
             throw new IllegalArgumentException("Work date must belong to the selected month.");
+        }
+    }
+
+    private void validateEntries(SaveTimesheetCommand command) {
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (DailyEntryCommand entryCommand : command.entries()) {
+            String durationField = "duration_" + entryCommand.workDate();
+            String noteField = "note_" + entryCommand.workDate();
+            try {
+                validateWorkDate(command.year(), command.month(), entryCommand.workDate());
+            } catch (IllegalArgumentException exception) {
+                errors.put(durationField, exception.getMessage());
+                continue;
+            }
+            try {
+                DurationFormat.parse(entryCommand.durationText());
+            } catch (IllegalArgumentException exception) {
+                errors.put(durationField, exception.getMessage());
+            }
+            if (entryCommand.note() != null && entryCommand.note().trim().length() > 1_000) {
+                errors.put(noteField, "Notes must be 1,000 characters or fewer.");
+            }
+        }
+
+        if (!errors.isEmpty()) {
+            throw new TimesheetValidationException(command, errors);
         }
     }
 

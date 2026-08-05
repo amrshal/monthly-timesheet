@@ -1,5 +1,6 @@
 package com.amrshalaby.timesheet.timesheet;
 
+import com.amrshalaby.timesheet.audit.AuditService;
 import com.amrshalaby.timesheet.auth.CurrentUserService;
 import com.amrshalaby.timesheet.common.DurationFormat;
 import com.amrshalaby.timesheet.user.AppUser;
@@ -10,11 +11,11 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.session.Session;
+import io.micronaut.views.ModelAndView;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
@@ -33,6 +34,7 @@ public class TimesheetController {
     private final MonthGridService monthGridService;
     private final TimesheetService timesheetService;
     private final UserService userService;
+    private final AuditService auditService;
     private final ZoneId businessZone;
 
     public TimesheetController(
@@ -40,12 +42,14 @@ public class TimesheetController {
         MonthGridService monthGridService,
         TimesheetService timesheetService,
         UserService userService,
+        AuditService auditService,
         @Value("${app.timezone:Europe/London}") String businessTimezone
     ) {
         this.currentUserService = currentUserService;
         this.monthGridService = monthGridService;
         this.timesheetService = timesheetService;
         this.userService = userService;
+        this.auditService = auditService;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -69,11 +73,19 @@ public class TimesheetController {
         Principal principal,
         int year,
         int month,
-        @Body Map<String, String> formValues
+        @Body Map<String, String> formValues,
+        Session session
     ) {
         AppUser actor = currentUserService.requireCurrentUser(principal);
         MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, actor, year, month);
-        timesheetService.saveEmployeeDraft(actor, actor, timesheet, formCommand(year, month, formValues));
+        try {
+            timesheetService.saveEmployeeDraft(actor, actor, timesheet, formCommand(year, month, formValues));
+        } catch (TimesheetValidationException exception) {
+            return HttpResponse.badRequest(new ModelAndView<>(
+                "timesheet",
+                timesheetModel(actor, actor, timesheet, session, exception.command(), exception.fieldErrors())
+            ));
+        }
         return HttpResponse.seeOther(URI.create("/timesheets/" + year + "/" + month));
     }
 
@@ -86,6 +98,17 @@ public class TimesheetController {
     }
 
     public Map<String, Object> timesheetModel(AppUser actor, AppUser subject, MonthlyTimesheet timesheet, Session session) {
+        return timesheetModel(actor, subject, timesheet, session, null, Map.of());
+    }
+
+    public Map<String, Object> timesheetModel(
+        AppUser actor,
+        AppUser subject,
+        MonthlyTimesheet timesheet,
+        Session session,
+        SaveTimesheetCommand submittedCommand,
+        Map<String, String> fieldErrors
+    ) {
         MonthGridService.MonthGrid grid = monthGridService.build(timesheet.getYear(), timesheet.getMonth());
         Map<LocalDate, DailyTimeEntry> entriesByDate = new HashMap<>();
         Map<LocalDate, String> durationByDate = new HashMap<>();
@@ -94,6 +117,12 @@ public class TimesheetController {
             entriesByDate.put(entry.getWorkDate(), entry);
             durationByDate.put(entry.getWorkDate(), DurationFormat.format(entry.getDurationMinutes()));
             noteByDate.put(entry.getWorkDate(), entry.getNote());
+        }
+        if (submittedCommand != null) {
+            for (DailyEntryCommand entry : submittedCommand.entries()) {
+                durationByDate.put(entry.workDate(), entry.durationText());
+                noteByDate.put(entry.workDate(), entry.note());
+            }
         }
 
         Map<LocalDate, Integer> minutesByDate = new HashMap<>();
@@ -121,8 +150,11 @@ public class TimesheetController {
             Map.entry("entries", entriesByDate),
             Map.entry("durations", durationByDate),
             Map.entry("notes", noteByDate),
+            Map.entry("fieldErrors", fieldErrors),
             Map.entry("weeklyTotals", weeklyTotals),
             Map.entry("monthlyTotal", DurationFormat.format(monthlyTotal(entriesByDate))),
+            Map.entry("recordedDays", entriesByDate.size()),
+            Map.entry("auditEvents", auditService.findForTimesheet(subject.getId(), timesheet.getId())),
             Map.entry("canEdit", StatusTransitionPolicy.employeeCanEdit(timesheet.getStatus(), self) || privileged),
             Map.entry("canSubmit", StatusTransitionPolicy.canSubmit(timesheet.getStatus(), actor.getRole(), true)),
             Map.entry("canApprove", StatusTransitionPolicy.canApprove(timesheet.getStatus(), actor.getRole(), true)),

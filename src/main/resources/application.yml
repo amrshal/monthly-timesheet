@@ -60,6 +60,8 @@ app:
   timezone: ${APP_TIMEZONE:Europe/London}
   manager-user-creation:
     enabled: ${APP_MANAGER_USER_CREATION_ENABLED:false}
+  password:
+    minimum-length: ${PASSWORD_MINIMUM_LENGTH:12}
   initial-admin:
     email: ${INITIAL_ADMIN_EMAIL:}
     password: ${INITIAL_ADMIN_PASSWORD:}

@@ -14,3 +14,11 @@ document.addEventListener('click', event => {
     editor.classList.toggle('is-open', open);
     button.setAttribute('aria-expanded', String(open));
 });
+
+document.addEventListener('submit', event => {
+    const form = event.target;
+    const message = form.getAttribute('data-confirm-message');
+    if (message && !window.confirm(message)) {
+        event.preventDefault();
+    }
+});

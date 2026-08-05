@@ -9,6 +9,57 @@
 <body>
 <main class="container">
     <h1>Audit log</h1>
+    <form method="get" action="/admin/audit" class="filter-form">
+        <label>
+            Actor
+            <select name="actorUserId">
+                <option value="">Any actor</option>
+                <option
+                    th:each="user : ${users}"
+                    th:value="${user.id}"
+                    th:selected="${actorUserId == user.id}"
+                    th:text="${user.displayName + ' (' + user.email + ')'}"
+                ></option>
+            </select>
+        </label>
+        <label>
+            Subject
+            <select name="subjectUserId">
+                <option value="">Any subject</option>
+                <option
+                    th:each="user : ${users}"
+                    th:value="${user.id}"
+                    th:selected="${subjectUserId == user.id}"
+                    th:text="${user.displayName + ' (' + user.email + ')'}"
+                ></option>
+            </select>
+        </label>
+        <label>
+            Event type
+            <select name="eventType">
+                <option value="">Any event</option>
+                <option
+                    th:each="type : ${eventTypes}"
+                    th:value="${type}"
+                    th:selected="${eventType == type.name()}"
+                    th:text="${type}"
+                ></option>
+            </select>
+        </label>
+        <label>
+            Timesheet ID
+            <input name="timesheetId" type="number" min="1" th:value="${timesheetId}">
+        </label>
+        <label>
+            From
+            <input name="fromDate" type="date" th:value="${fromDate}">
+        </label>
+        <label>
+            To
+            <input name="toDate" type="date" th:value="${toDate}">
+        </label>
+        <button type="submit">Filter</button>
+    </form>
     <table class="admin-table">
         <thead>
         <tr>

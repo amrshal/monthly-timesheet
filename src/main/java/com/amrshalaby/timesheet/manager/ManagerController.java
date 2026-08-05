@@ -1,16 +1,20 @@
 package com.amrshalaby.timesheet.manager;
 
 import com.amrshalaby.timesheet.auth.CurrentUserService;
+import com.amrshalaby.timesheet.common.DurationFormat;
+import com.amrshalaby.timesheet.timesheet.DailyTimeEntry;
 import com.amrshalaby.timesheet.timesheet.MonthlyTimesheet;
 import com.amrshalaby.timesheet.timesheet.MonthlyTimesheetRepository;
 import com.amrshalaby.timesheet.timesheet.TimesheetController;
 import com.amrshalaby.timesheet.timesheet.TimesheetService;
 import com.amrshalaby.timesheet.timesheet.TimesheetStatus;
+import com.amrshalaby.timesheet.timesheet.TimesheetValidationException;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.AuthorisationService;
 import com.amrshalaby.timesheet.user.UserRepository;
 import com.amrshalaby.timesheet.user.UserService;
 import com.amrshalaby.timesheet.web.ViewModel;
+import io.micronaut.context.annotation.Value;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -18,9 +22,11 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.session.Session;
+import io.micronaut.views.ModelAndView;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +46,7 @@ public class ManagerController {
     private final TimesheetController timesheetController;
     private final UserRepository userRepository;
     private final UserService userService;
+    private final ZoneId businessZone;
 
     public ManagerController(
         CurrentUserService currentUserService,
@@ -48,7 +55,8 @@ public class ManagerController {
         TimesheetService timesheetService,
         TimesheetController timesheetController,
         UserRepository userRepository,
-        UserService userService
+        UserService userService,
+        @Value("${app.timezone:Europe/London}") String businessTimezone
     ) {
         this.currentUserService = currentUserService;
         this.authorisationService = authorisationService;
@@ -57,6 +65,7 @@ public class ManagerController {
         this.timesheetController = timesheetController;
         this.userRepository = userRepository;
         this.userService = userService;
+        this.businessZone = ZoneId.of(businessTimezone);
     }
 
     @Get
@@ -73,14 +82,19 @@ public class ManagerController {
             )
             .filter(timesheet -> employeeIds.contains(timesheet.getUserId()))
             .sorted(Comparator.comparing(MonthlyTimesheet::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder())))
-            .map(timesheet -> new ReviewTimesheet(timesheet, employeesById.get(timesheet.getUserId())))
+            .map(timesheet -> new ReviewTimesheet(
+                timesheet,
+                employeesById.get(timesheet.getUserId()),
+                submittedBy(timesheet),
+                DurationFormat.format(totalMinutes(timesheet))
+            ))
             .toList();
 
         return ViewModel.withCsrf(Map.of(
             "title", "Manager dashboard",
             "employees", employees,
             "awaitingApproval", awaitingApproval,
-            "currentMonth", YearMonth.now()
+            "currentMonth", YearMonth.now(businessZone)
         ), session);
     }
 
@@ -108,19 +122,34 @@ public class ManagerController {
     public HttpResponse<?> save(
         Principal principal,
         Long timesheetId,
-        @Body Map<String, String> formValues
+        @Body Map<String, String> formValues,
+        Session session
     ) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.savePrivileged(
-            context.actor(),
-            context.subject(),
-            context.timesheet(),
-            timesheetController.formCommand(
-                context.timesheet().getYear(),
-                context.timesheet().getMonth(),
-                formValues
-            )
-        );
+        try {
+            timesheetService.savePrivileged(
+                context.actor(),
+                context.subject(),
+                context.timesheet(),
+                timesheetController.formCommand(
+                    context.timesheet().getYear(),
+                    context.timesheet().getMonth(),
+                    formValues
+                )
+            );
+        } catch (TimesheetValidationException exception) {
+            return HttpResponse.badRequest(new ModelAndView<>(
+                "timesheet",
+                timesheetController.timesheetModel(
+                    context.actor(),
+                    context.subject(),
+                    context.timesheet(),
+                    session,
+                    exception.command(),
+                    exception.fieldErrors()
+                )
+            ));
+        }
         return redirect(timesheetId);
     }
 
@@ -160,6 +189,27 @@ public class ManagerController {
     private record WithTimesheet(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
     }
 
-    private record ReviewTimesheet(MonthlyTimesheet timesheet, AppUser employee) {
+    private String submittedBy(MonthlyTimesheet timesheet) {
+        if (timesheet.getSubmittedByUserId() == null) {
+            return "";
+        }
+
+        return userService.findById(timesheet.getSubmittedByUserId())
+            .map(AppUser::getDisplayName)
+            .orElse("Unknown user");
+    }
+
+    private int totalMinutes(MonthlyTimesheet timesheet) {
+        return timesheetService.entries(timesheet.getId()).stream()
+            .mapToInt(DailyTimeEntry::getDurationMinutes)
+            .sum();
+    }
+
+    private record ReviewTimesheet(
+        MonthlyTimesheet timesheet,
+        AppUser employee,
+        String submittedBy,
+        String total
+    ) {
     }
 }

@@ -4,6 +4,7 @@ import com.amrshalaby.timesheet.audit.AuditEventType;
 import com.amrshalaby.timesheet.audit.AuditService;
 import com.amrshalaby.timesheet.auth.PasswordHasher;
 import com.amrshalaby.timesheet.common.EmailNormalizer;
+import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import java.util.List;
@@ -16,17 +17,20 @@ public class UserService {
     private final PasswordHasher passwordHasher;
     private final AuthorisationService authorisationService;
     private final AuditService auditService;
+    private final int minimumPasswordLength;
 
     public UserService(
         UserRepository userRepository,
         PasswordHasher passwordHasher,
         AuthorisationService authorisationService,
-        AuditService auditService
+        AuditService auditService,
+        @Value("${app.password.minimum-length:12}") int minimumPasswordLength
     ) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.authorisationService = authorisationService;
         this.auditService = auditService;
+        this.minimumPasswordLength = minimumPasswordLength;
     }
 
     public Optional<AppUser> findActiveByEmail(String email) {
@@ -46,6 +50,7 @@ public class UserService {
     public AppUser createUser(AppUser actor, CreateUserCommand command) {
         validateCreateActor(actor, command);
         validateUser(command.email(), command.displayName(), command.role(), command.managerId());
+        validatePassword(command.temporaryPassword());
         ensureEmailAvailable(command.email(), null);
 
         AppUser user = new AppUser();
@@ -113,6 +118,7 @@ public class UserService {
         if (command.newPassword() == null || !command.newPassword().equals(command.confirmPassword())) {
             throw new IllegalArgumentException("New password and confirmation must match.");
         }
+        validatePassword(command.newPassword());
 
         actor.setPasswordHash(passwordHasher.hash(command.newPassword()));
         actor.setMustChangePassword(false);
@@ -132,6 +138,7 @@ public class UserService {
         authorisationService.requireAdministrator(actor);
         AppUser user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        validatePassword(temporaryPassword);
         user.setPasswordHash(passwordHasher.hash(temporaryPassword));
         user.setMustChangePassword(true);
         userRepository.update(user);
@@ -187,8 +194,14 @@ public class UserService {
         if (role == null) {
             throw new IllegalArgumentException("Role is required.");
         }
-        if (managerId != null && userRepository.findById(managerId).filter(u -> u.getRole() == UserRole.MANAGER).isEmpty()) {
+        if (managerId != null && userRepository.findById(managerId).filter(u -> u.getRole() == UserRole.MANAGER && u.isActive()).isEmpty()) {
             throw new IllegalArgumentException("Assigned manager must be an active manager.");
+        }
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < minimumPasswordLength) {
+            throw new IllegalArgumentException("Password must be at least " + minimumPasswordLength + " characters.");
         }
     }
 

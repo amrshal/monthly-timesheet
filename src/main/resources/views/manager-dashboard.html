@@ -15,7 +15,9 @@
         <tr>
             <th>Employee</th>
             <th>Month</th>
+            <th>Total</th>
             <th>Submitted at</th>
+            <th>Submitted by</th>
             <th>Review</th>
         </tr>
         </thead>
@@ -23,7 +25,9 @@
         <tr th:each="review : ${awaitingApproval}">
             <td th:text="${review.employee.displayName}">Employee</td>
             <td th:text="${review.timesheet.year + '-' + review.timesheet.month}">2026-8</td>
+            <td th:text="${review.total}">00:00</td>
             <td th:text="${review.timesheet.submittedAt}">Submitted</td>
+            <td th:text="${review.submittedBy}">Submitter</td>
             <td><a th:href="@{/manager/timesheets/{id}(id=${review.timesheet.id})}">Review</a></td>
         </tr>
         </tbody>

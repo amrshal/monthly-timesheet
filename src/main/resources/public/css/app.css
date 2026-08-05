@@ -65,6 +65,7 @@ body {
 
 button:focus,
 input:focus,
+textarea:focus,
 a:focus {
     outline: 3px solid var(--mts-focus);
     outline-offset: 2px;
@@ -88,6 +89,13 @@ a:focus {
     width: 100%;
 }
 
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 1rem 0;
+}
+
 .admin-table th,
 .admin-table td {
     border: 1px solid var(--mts-border);
@@ -107,4 +115,17 @@ a:focus {
 .note-editor textarea {
     min-height: 5rem;
     width: 100%;
+}
+
+.field-error {
+    color: #b42318;
+    font-size: 0.8rem;
+    margin: 0.25rem 0 0;
+}
+
+.confirmation-detail {
+    background: #f8f9fa;
+    border-left: 4px solid var(--mts-primary);
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.75rem;
 }

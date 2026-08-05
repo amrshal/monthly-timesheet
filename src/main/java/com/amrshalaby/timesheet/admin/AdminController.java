@@ -1,5 +1,6 @@
 package com.amrshalaby.timesheet.admin;
 
+import com.amrshalaby.timesheet.audit.AuditEvent;
 import com.amrshalaby.timesheet.audit.AuditEventRepository;
 import com.amrshalaby.timesheet.auth.CurrentUserService;
 import com.amrshalaby.timesheet.user.AppUser;
@@ -14,12 +15,17 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.session.Session;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 
 @Controller("/admin")
 @Secured("ADMIN")
@@ -122,8 +128,38 @@ public class AdminController {
 
     @Get("/audit")
     @View("audit-log")
-    public Map<String, Object> audit(Session session) {
-        return ViewModel.withCsrf(Map.of("title", "Audit log", "events", auditEventRepository.findAll()), session);
+    public Map<String, Object> audit(
+        @Nullable Long actorUserId,
+        @Nullable Long subjectUserId,
+        @Nullable String eventType,
+        @Nullable Long timesheetId,
+        @Nullable LocalDate fromDate,
+        @Nullable LocalDate toDate,
+        Session session
+    ) {
+        List<AuditEvent> events = StreamSupport.stream(auditEventRepository.findAll().spliterator(), false)
+            .filter(event -> actorUserId == null || actorUserId.equals(event.getActorUserId()))
+            .filter(event -> subjectUserId == null || subjectUserId.equals(event.getSubjectUserId()))
+            .filter(event -> eventType == null || eventType.isBlank() || eventType.equals(event.getEventType()))
+            .filter(event -> timesheetId == null
+                || ("monthly_timesheet".equals(event.getEntityType()) && timesheetId.equals(event.getEntityId())))
+            .filter(event -> fromDate == null
+                || !event.getEventTime().isBefore(fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)))
+            .filter(event -> toDate == null
+                || event.getEventTime().isBefore(toDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)))
+            .toList();
+        return ViewModel.withCsrf(Map.ofEntries(
+            Map.entry("title", "Audit log"),
+            Map.entry("events", events),
+            Map.entry("users", userService.findAll()),
+            Map.entry("eventTypes", com.amrshalaby.timesheet.audit.AuditEventType.values()),
+            Map.entry("actorUserId", actorUserId == null ? "" : actorUserId),
+            Map.entry("subjectUserId", subjectUserId == null ? "" : subjectUserId),
+            Map.entry("eventType", eventType == null ? "" : eventType),
+            Map.entry("timesheetId", timesheetId == null ? "" : timesheetId),
+            Map.entry("fromDate", fromDate == null ? "" : fromDate),
+            Map.entry("toDate", toDate == null ? "" : toDate)
+        ), session);
     }
 
     private Long parseLong(String value) {
