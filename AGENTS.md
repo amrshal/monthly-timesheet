@@ -12,8 +12,8 @@ The application is a small server-rendered Micronaut application using Java, Thy
 
 ## Non-negotiable constraints
 
-- Use Micronaut 4.
-- Use Java 21 or later.
+- Use Micronaut 5.
+- Use Java 25.
 - Use Maven.
 - Use Thymeleaf.
 - Use Micronaut Data JDBC.
