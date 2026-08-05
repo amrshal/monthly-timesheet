@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create employee</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<main class="container">
+    <h1>Create employee</h1>
+    <form method="post" action="/manager/users">
+        <label>
+            Display name
+            <input name="displayName" type="text" required>
+        </label>
+        <label>
+            Email
+            <input name="email" type="email" required>
+        </label>
+        <label>
+            Temporary password
+            <input name="temporaryPassword" type="password" autocomplete="new-password" minlength="12" required>
+        </label>
+        <button type="submit">Create employee</button>
+    </form>
+</main>
+</body>
+</html>

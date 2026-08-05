@@ -1,0 +1,157 @@
+package com.amrshalaby.timesheet.timesheet;
+
+import com.amrshalaby.timesheet.auth.CurrentUserService;
+import com.amrshalaby.timesheet.common.DurationFormat;
+import com.amrshalaby.timesheet.user.AppUser;
+import com.amrshalaby.timesheet.user.UserService;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.QueryValue;
+import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.rules.SecurityRule;
+import io.micronaut.views.View;
+import java.net.URI;
+import java.security.Principal;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Controller("/timesheets")
+@Secured(SecurityRule.IS_AUTHENTICATED)
+public class TimesheetController {
+    private final CurrentUserService currentUserService;
+    private final MonthGridService monthGridService;
+    private final TimesheetService timesheetService;
+    private final UserService userService;
+
+    public TimesheetController(
+        CurrentUserService currentUserService,
+        MonthGridService monthGridService,
+        TimesheetService timesheetService,
+        UserService userService
+    ) {
+        this.currentUserService = currentUserService;
+        this.monthGridService = monthGridService;
+        this.timesheetService = timesheetService;
+        this.userService = userService;
+    }
+
+    @Get
+    @View("timesheet")
+    public Map<String, Object> current(Principal principal) {
+        YearMonth now = YearMonth.now();
+        return view(principal, now.getYear(), now.getMonthValue());
+    }
+
+    @Get("/{year}/{month}")
+    @View("timesheet")
+    public Map<String, Object> view(Principal principal, int year, int month) {
+        AppUser actor = currentUserService.requireCurrentUser(principal);
+        MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, actor, year, month);
+        return timesheetModel(actor, actor, timesheet);
+    }
+
+    @Post("/{year}/{month}")
+    public HttpResponse<?> save(
+        Principal principal,
+        int year,
+        int month,
+        @Body Map<String, String> formValues
+    ) {
+        AppUser actor = currentUserService.requireCurrentUser(principal);
+        MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, actor, year, month);
+        timesheetService.saveEmployeeDraft(actor, actor, timesheet, formCommand(year, month, formValues));
+        return HttpResponse.seeOther(URI.create("/timesheets/" + year + "/" + month));
+    }
+
+    @Post("/{year}/{month}/submit")
+    public HttpResponse<?> submit(Principal principal, int year, int month) {
+        AppUser actor = currentUserService.requireCurrentUser(principal);
+        MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, actor, year, month);
+        timesheetService.submit(actor, actor, timesheet);
+        return HttpResponse.seeOther(URI.create("/timesheets/" + year + "/" + month));
+    }
+
+    public Map<String, Object> timesheetModel(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
+        MonthGridService.MonthGrid grid = monthGridService.build(timesheet.getYear(), timesheet.getMonth());
+        Map<LocalDate, DailyTimeEntry> entriesByDate = new HashMap<>();
+        Map<LocalDate, String> durationByDate = new HashMap<>();
+        Map<LocalDate, String> noteByDate = new HashMap<>();
+        for (DailyTimeEntry entry : timesheetService.entries(timesheet.getId())) {
+            entriesByDate.put(entry.getWorkDate(), entry);
+            durationByDate.put(entry.getWorkDate(), DurationFormat.format(entry.getDurationMinutes()));
+            noteByDate.put(entry.getWorkDate(), entry.getNote());
+        }
+
+        Map<LocalDate, Integer> minutesByDate = new HashMap<>();
+        entriesByDate.forEach((date, entry) -> minutesByDate.put(date, entry.getDurationMinutes()));
+
+        List<String> weeklyTotals = new ArrayList<>();
+        for (MonthGridService.WeekRow week : grid.weeks()) {
+            weeklyTotals.add(DurationFormat.format(TimesheetTotals.weeklyTotal(week.days(), minutesByDate)));
+        }
+
+        boolean self = actor.getId().equals(subject.getId());
+        boolean privileged = actor.getRole() == com.amrshalaby.timesheet.user.UserRole.MANAGER
+            || actor.getRole() == com.amrshalaby.timesheet.user.UserRole.ADMIN;
+
+        String baseAction = actionBase(actor, subject, timesheet);
+
+        return Map.ofEntries(
+            Map.entry("title", "Timesheet"),
+            Map.entry("actor", actor),
+            Map.entry("subject", subject),
+            Map.entry("timesheet", timesheet),
+            Map.entry("grid", grid),
+            Map.entry("entries", entriesByDate),
+            Map.entry("durations", durationByDate),
+            Map.entry("notes", noteByDate),
+            Map.entry("weeklyTotals", weeklyTotals),
+            Map.entry("monthlyTotal", DurationFormat.format(monthlyTotal(entriesByDate))),
+            Map.entry("canEdit", StatusTransitionPolicy.employeeCanEdit(timesheet.getStatus(), self) || privileged),
+            Map.entry("canSubmit", StatusTransitionPolicy.canSubmit(timesheet.getStatus(), actor.getRole(), true)),
+            Map.entry("canApprove", StatusTransitionPolicy.canApprove(timesheet.getStatus(), actor.getRole(), true)),
+            Map.entry("canReopen", StatusTransitionPolicy.canReopen(timesheet.getStatus(), actor.getRole(), true)),
+            Map.entry("saveAction", baseAction),
+            Map.entry("submitAction", baseAction + "/submit"),
+            Map.entry("approveAction", baseAction + "/approve"),
+            Map.entry("reopenAction", baseAction + "/reopen")
+        );
+    }
+
+    public SaveTimesheetCommand formCommand(int year, int month, Map<String, String> formValues) {
+        List<DailyEntryCommand> entries = YearMonth.of(year, month).atDay(1)
+            .datesUntil(YearMonth.of(year, month).plusMonths(1).atDay(1))
+            .map(date -> new DailyEntryCommand(
+                date,
+                formValues.getOrDefault("duration_" + date, ""),
+                formValues.getOrDefault("note_" + date, "")
+            ))
+            .toList();
+        return new SaveTimesheetCommand(year, month, null, entries);
+    }
+
+
+    private String actionBase(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
+        if (actor.getRole() == com.amrshalaby.timesheet.user.UserRole.ADMIN && !actor.getId().equals(subject.getId())) {
+            return "/admin/timesheets/" + timesheet.getId();
+        }
+        if (actor.getRole() == com.amrshalaby.timesheet.user.UserRole.MANAGER && !actor.getId().equals(subject.getId())) {
+            return "/manager/timesheets/" + timesheet.getId();
+        }
+
+        return "/timesheets/" + timesheet.getYear() + "/" + timesheet.getMonth();
+    }
+
+    private int monthlyTotal(Map<LocalDate, DailyTimeEntry> entriesByDate) {
+        return entriesByDate.values().stream()
+            .mapToInt(DailyTimeEntry::getDurationMinutes)
+            .sum();
+    }
+}

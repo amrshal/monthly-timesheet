@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Timesheet</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<main class="container">
+    <h1>Monthly timesheet</h1>
+    <p>
+        Employee: <strong th:text="${subject.displayName}">Employee</strong>
+        Status: <strong class="status-badge" th:text="${timesheet.status}">DRAFT</strong>
+    </p>
+
+    <nav class="month-nav">
+        <a th:href="@{/timesheets/{year}/{month}(year=${grid.month.minusMonths(1).year},month=${grid.month.minusMonths(1).monthValue})}">Previous month</a>
+        <a th:href="@{/timesheets}">Today</a>
+        <a th:href="@{/timesheets/{year}/{month}(year=${grid.month.plusMonths(1).year},month=${grid.month.plusMonths(1).monthValue})}">Next month</a>
+    </nav>
+
+    <form method="post" th:action="${saveAction}">
+        <div class="timesheet-scroll">
+            <table class="timesheet-grid">
+                <thead>
+                <tr>
+                    <th>Week</th>
+                    <th>Monday</th>
+                    <th>Tuesday</th>
+                    <th>Wednesday</th>
+                    <th>Thursday</th>
+                    <th>Friday</th>
+                    <th>Saturday</th>
+                    <th>Sunday</th>
+                    <th>Total</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="week, iter : ${grid.weeks}">
+                    <th th:text="${iter.index + 1}">1</th>
+                    <td th:each="day : ${week.days}" th:classappend="${day.inMonth} ? '' : ' muted'">
+                        <span th:text="${#temporals.format(day.date, 'd E')}">1 Mon</span>
+                        <label th:if="${day.inMonth}">
+                            Duration
+                            <input
+                                th:name="${'duration_' + day.date}"
+                                type="text"
+                                inputmode="numeric"
+                                pattern="[0-9:]*"
+                                placeholder="HH:MM"
+                                th:value="${durations.get(day.date)}"
+                                th:readonly="${!canEdit}"
+                            >
+                        </label>
+                        <button
+                            th:if="${day.inMonth}"
+                            type="button"
+                            class="note-button"
+                            th:attr="aria-expanded='false',aria-controls=${'note_' + day.date}"
+                        >
+                            <span th:text="${notes.get(day.date)} == null ? '♡ Note' : '♥ Note present'">♡ Note</span>
+                        </button>
+                        <label th:if="${day.inMonth}" class="note-editor" th:id="${'note_' + day.date}">
+                            Note
+                            <textarea th:name="${'note_' + day.date}" maxlength="1000" th:text="${notes.get(day.date)}"></textarea>
+                        </label>
+                    </td>
+                    <td th:text="${weeklyTotals.get(iter.index)}">00:00</td>
+                </tr>
+                </tbody>
+                <tfoot>
+                <tr>
+                    <th colspan="8">Month total</th>
+                    <td th:text="${monthlyTotal}">00:00</td>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+        <button type="submit" th:if="${canEdit}">Save</button>
+    </form>
+
+    <section class="actions">
+        <form
+            method="post"
+            th:if="${canSubmit}"
+            th:action="${submitAction}"
+        >
+            <button type="submit">Submit</button>
+        </form>
+        <form method="post" th:if="${canApprove}" th:action="${approveAction}">
+            <button type="submit">Approve</button>
+        </form>
+        <form method="post" th:if="${canReopen}" th:action="${reopenAction}">
+            <label>
+                Reopen reason
+                <input name="reason" type="text" required>
+            </label>
+            <button type="submit">Reopen</button>
+        </form>
+    </section>
+</main>
+<script src="/css/app.js"></script>
+</body>
+</html>

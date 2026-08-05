@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title}">User</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<main class="container">
+    <h1 th:text="${title}">User</h1>
+    <form method="post" th:action="${user} == null ? @{/admin/users} : @{/admin/users/{id}(id=${user.id})}">
+        <label>
+            Display name
+            <input name="displayName" type="text" required th:value="${user} == null ? '' : ${user.displayName}">
+        </label>
+        <label>
+            Email
+            <input name="email" type="email" required th:value="${user} == null ? '' : ${user.email}">
+        </label>
+        <label>
+            Role
+            <select name="role" required>
+                <option th:each="role : ${roles}" th:value="${role}" th:text="${role}"></option>
+            </select>
+        </label>
+        <label>
+            Manager ID
+            <input name="managerId" type="number" min="1">
+        </label>
+        <label th:if="${user} == null">
+            Temporary password
+            <input name="temporaryPassword" type="password" autocomplete="new-password" required>
+        </label>
+        <label th:if="${user} != null">
+            Active
+            <input name="active" type="checkbox" value="true" th:checked="${user.active}">
+        </label>
+        <label>
+            Require password change
+            <input name="mustChangePassword" type="checkbox" value="true" checked>
+        </label>
+        <button type="submit">Save user</button>
+    </form>
+
+    <form th:if="${user} != null" th:action="@{/admin/users/{id}/reset-password(id=${user.id})}" method="post">
+        <label>
+            Reset temporary password
+            <input name="temporaryPassword" type="password" autocomplete="new-password" required>
+        </label>
+        <button type="submit">Reset password</button>
+    </form>
+</main>
+</body>
+</html>

@@ -1,2 +1,123 @@
-# monthly-timesheet
-A simple open-source monthly timesheet and approval application built with Java 25, Micronaut, Thymeleaf and MySQL.
+# Monthly Timesheet
+
+Server-rendered monthly timesheet application for fewer than ten employees.
+
+## Stack
+
+- Java 25
+- Micronaut 5.1.0
+- Maven
+- Thymeleaf
+- Micronaut Data JDBC
+- Flyway
+- MySQL 8 / DigitalOcean Managed MySQL
+- MySQL Testcontainers for integration testing
+- Docker
+
+## Version note
+
+This project intentionally targets Java 25 and Micronaut 5.1.0 based on the latest
+project direction, overriding the earlier Micronaut 4 / Java 21 wording in
+`SPECIFICATION.md`.
+
+## Current implementation notes
+
+This branch lays down the application foundation: Micronaut configuration, Flyway schema,
+core duration/month-grid/status policy code, server-rendered application pages, Docker assets,
+and focused unit tests. The remaining production workflows should continue in small slices
+following `SPECIFICATION.md`.
+
+Decisions made while implementing without further input:
+
+- Base package: `com.amrshalaby.timesheet`.
+- Default business timezone: `Europe/London`.
+- Styling: Bootstrap-compatible custom CSS variables plus small monthly-grid CSS.
+- HTMX: not used; vanilla JavaScript only where needed.
+- Privileged edit audit plan: one batch `TIMESHEET_PRIVILEGED_EDITED` event with a JSON `changed_days` array.
+- User registration: no public self-registration; admins and authorised managers create users.
+- Local Docker Compose is provided only for development.
+
+## Local development
+
+```bash
+mvn test
+```
+
+Run with local MySQL:
+
+```bash
+docker compose up --build
+```
+
+Open:
+
+```text
+http://localhost:8080/health
+```
+
+## Production package
+
+```bash
+mvn -DskipTests package
+```
+
+## Docker image
+
+```bash
+docker build -t monthly-timesheet:latest .
+```
+
+## DigitalOcean App Platform
+
+1. Build and push the Docker image to your registry.
+2. Create an App Platform app from the image.
+3. Configure environment variables from `.env.example`.
+4. Use a DigitalOcean Managed MySQL database and set the JDBC URL with TLS enabled, for example `sslMode=REQUIRED`.
+5. Configure `/health` as the health endpoint.
+
+Do not commit DigitalOcean credentials, database certificates, or real `.env` files.
+
+## DigitalOcean Droplet with docker run
+
+```bash
+docker run -d \
+  --name monthly-timesheet \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -e JDBC_URL='jdbc:mysql://your-do-host:25060/monthly_timesheet?sslMode=REQUIRED' \
+  -e JDBC_USER='timesheet_app' \
+  -e JDBC_PASSWORD='replace-me' \
+  -e JDBC_MAX_POOL_SIZE='5' \
+  -e DB_SSL_MODE='REQUIRED' \
+  -e SESSION_SECRET='replace-with-long-random-secret' \
+  -e APP_TIMEZONE='Europe/London' \
+  -e INITIAL_ADMIN_EMAIL='admin@example.com' \
+  -e INITIAL_ADMIN_PASSWORD='replace-with-temporary-password' \
+  -e INITIAL_ADMIN_NAME='Initial Administrator' \
+  monthly-timesheet:latest
+```
+
+## Current implementation status and known limitations
+
+Implemented in this branch:
+
+- Java 25 / Micronaut 5.1.0 build configuration.
+- Flyway schema for users, monthly timesheets, daily entries and audit events.
+- Database-backed user model and password hashing using PBKDF2-HMAC-SHA256.
+- Initial administrator bootstrapping from `INITIAL_ADMIN_*` variables.
+- Database authentication provider with login success/failure audit events.
+- Administrator user create/edit/disable/reactivate/reset-password service and screens.
+- Employee monthly grid, save and submit routes.
+- Manager/admin timesheet view, privileged save, submit, approve and reopen routes.
+- Transactional audit events for workflow actions and privileged edit diffs.
+- Focused tests for duration parsing, month grid, status policy, email normalisation,
+  password hashing and authorisation rules.
+
+Environment limitations in this workspace:
+
+- The installed Java runtime is Java 21, but the project now targets Java 25 by explicit
+  project direction.
+- Maven dependency resolution cannot complete because Maven Central returns HTTP 403 from
+  the network tunnel, so the Maven test/package lifecycle could not be verified here.
+- Docker image build, container startup, MySQL Testcontainers, and DigitalOcean TLS database
+  verification still need to run in an environment with Java 25, Docker and Maven Central access.

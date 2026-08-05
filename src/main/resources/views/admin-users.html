@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>User administration</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<main class="container">
+    <h1>User administration</h1>
+    <p><a href="/admin/users/new">Create user</a></p>
+    <table class="admin-table">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Active</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="user : ${users}">
+            <td th:text="${user.displayName}">Employee</td>
+            <td th:text="${user.email}">employee@example.com</td>
+            <td th:text="${user.role}">EMPLOYEE</td>
+            <td th:text="${user.active} ? 'Yes' : 'No'">Yes</td>
+            <td>
+                <a th:href="@{/admin/users/{id}(id=${user.id})}">Edit</a>
+                <form th:if="${user.active}" th:action="@{/admin/users/{id}/disable(id=${user.id})}" method="post">
+                    <button type="submit">Disable</button>
+                </form>
+                <form th:unless="${user.active}" th:action="@{/admin/users/{id}/reactivate(id=${user.id})}" method="post">
+                    <button type="submit">Reactivate</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>

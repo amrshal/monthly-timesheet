@@ -1,0 +1,7 @@
+micronaut:
+  security:
+    enabled: false
+flyway:
+  datasources:
+    default:
+      enabled: false
