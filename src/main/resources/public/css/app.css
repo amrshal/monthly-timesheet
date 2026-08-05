@@ -69,3 +69,42 @@ a:focus {
     outline: 3px solid var(--mts-focus);
     outline-offset: 2px;
 }
+
+.status-badge {
+    border: 1px solid var(--mts-border);
+    border-radius: 999px;
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+}
+
+.month-nav {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.admin-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.admin-table th,
+.admin-table td {
+    border: 1px solid var(--mts-border);
+    padding: 0.5rem;
+    text-align: left;
+}
+
+.note-editor {
+    display: none;
+    margin-top: 0.5rem;
+}
+
+.note-editor.is-open {
+    display: block;
+}
+
+.note-editor textarea {
+    min-height: 5rem;
+    width: 100%;
+}
