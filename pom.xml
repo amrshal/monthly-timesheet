@@ -50,6 +50,10 @@
             <artifactId>micronaut-security-session</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.micronaut.security</groupId>
+            <artifactId>micronaut-security-csrf</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.micronaut.data</groupId>
             <artifactId>micronaut-data-jdbc</artifactId>
         </dependency>

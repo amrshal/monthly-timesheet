@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title}">Error</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<main class="container">
+    <h1 th:text="${title}">Something went wrong</h1>
+    <p th:text="${message}">Please check the request and try again.</p>
+    <p><a href="/timesheets">Back to timesheets</a></p>
+</main>
+</body>
+</html>

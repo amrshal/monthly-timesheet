@@ -173,6 +173,7 @@ public class TimesheetService {
 
     private List<PrivilegedChange> saveEntries(MonthlyTimesheet timesheet, SaveTimesheetCommand command) {
         validateCommandMatchesTimesheet(timesheet, command);
+        validateExpectedVersion(timesheet, command);
         Map<LocalDate, DailyTimeEntry> existing = existingEntries(timesheet.getId());
         List<PrivilegedChange> changes = new ArrayList<>();
 
@@ -180,11 +181,21 @@ public class TimesheetService {
             validateWorkDate(command.year(), command.month(), entryCommand.workDate());
             OptionalInt parsedDuration = DurationFormat.parse(entryCommand.durationText());
             String note = normaliseNote(entryCommand.note());
+            DailyTimeEntry entry = existing.get(entryCommand.workDate());
             if (parsedDuration.isEmpty() && note == null) {
+                if (entry != null) {
+                    changes.add(new PrivilegedChange(
+                        entryCommand.workDate(),
+                        entry.getDurationMinutes(),
+                        null,
+                        entry.getNote(),
+                        null
+                    ));
+                    entryRepository.delete(entry);
+                }
                 continue;
             }
 
-            DailyTimeEntry entry = existing.get(entryCommand.workDate());
             Integer beforeDuration = entry == null ? null : entry.getDurationMinutes();
             String beforeNote = entry == null ? null : entry.getNote();
             int afterDuration = parsedDuration.orElse(0);
@@ -241,6 +252,12 @@ public class TimesheetService {
         validateMonth(command.year(), command.month());
         if (timesheet.getYear() != command.year() || timesheet.getMonth() != command.month()) {
             throw new IllegalArgumentException("Submitted month does not match the timesheet.");
+        }
+    }
+
+    private void validateExpectedVersion(MonthlyTimesheet timesheet, SaveTimesheetCommand command) {
+        if (command.expectedVersion() != null && !command.expectedVersion().equals(timesheet.getVersion())) {
+            throw new TimesheetConflictException("This timesheet has changed since you opened it. Reload and try again.");
         }
     }
 

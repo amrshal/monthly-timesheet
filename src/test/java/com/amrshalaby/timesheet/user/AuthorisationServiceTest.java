@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class AuthorisationServiceTest {
-    private final AuthorisationService service = new AuthorisationService();
+    private final AuthorisationService service = new AuthorisationService(false);
 
     @Test
     void administratorCanManageEveryone() {
@@ -36,10 +36,10 @@ class AuthorisationServiceTest {
     }
 
     @Test
-    void managerCanCreateEmployeesButCannotAdministerUsers() {
+    void managerCannotCreateEmployeesByDefaultAndCannotAdministerUsers() {
         AppUser manager = user(1L, UserRole.MANAGER, null);
 
-        assertTrue(service.canManagerCreateEmployee(manager));
+        assertFalse(service.canManagerCreateEmployee(manager));
         assertFalse(service.canAdministerUsers(manager));
     }
 

@@ -10,6 +10,29 @@
 <main class="container">
     <h1 th:text="${title}">Dashboard</h1>
     <p th:text="${message}">Message</p>
+
+    <form method="get" action="/admin/timesheets" th:if="${users} != null">
+        <label>
+            Employee
+            <select name="userId" required>
+                <option value="">Select employee</option>
+                <option th:each="user : ${users}" th:value="${user.id}" th:text="${user.displayName + ' (' + user.email + ')'}"></option>
+            </select>
+        </label>
+        <label>
+            Year
+            <input name="year" type="number" min="2000" max="2100" required th:value="${currentYear}">
+        </label>
+        <label>
+            Month
+            <input name="month" type="number" min="1" max="12" required th:value="${currentMonth}">
+        </label>
+        <button type="submit">Open timesheet</button>
+    </form>
+
+    <p th:if="${timesheet} != null">
+        <a th:href="@{/admin/timesheets/{id}(id=${timesheet.id})}">Open timesheet</a>
+    </p>
 </main>
 </body>
 </html>

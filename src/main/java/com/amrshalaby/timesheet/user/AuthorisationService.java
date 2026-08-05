@@ -1,9 +1,16 @@
 package com.amrshalaby.timesheet.user;
 
+import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 
 @Singleton
 public class AuthorisationService {
+    private final boolean managerUserCreationEnabled;
+
+    public AuthorisationService(@Value("${app.manager-user-creation.enabled:false}") boolean managerUserCreationEnabled) {
+        this.managerUserCreationEnabled = managerUserCreationEnabled;
+    }
+
     public boolean canManageUser(AppUser actor, AppUser subject) {
         if (actor == null || subject == null || !actor.isActive()) {
             return false;
@@ -23,7 +30,7 @@ public class AuthorisationService {
     }
 
     public boolean canManagerCreateEmployee(AppUser actor) {
-        return actor != null && actor.isActive() && actor.getRole() == UserRole.MANAGER;
+        return managerUserCreationEnabled && actor != null && actor.isActive() && actor.getRole() == UserRole.MANAGER;
     }
 
     public void requireTimesheetScope(AppUser actor, AppUser subject) {

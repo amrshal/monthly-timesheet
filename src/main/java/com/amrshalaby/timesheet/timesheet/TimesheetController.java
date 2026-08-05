@@ -4,18 +4,22 @@ import com.amrshalaby.timesheet.auth.CurrentUserService;
 import com.amrshalaby.timesheet.common.DurationFormat;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.UserService;
+import com.amrshalaby.timesheet.web.ViewModel;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
+import io.micronaut.context.annotation.Value;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
+import io.micronaut.session.Session;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,32 +33,35 @@ public class TimesheetController {
     private final MonthGridService monthGridService;
     private final TimesheetService timesheetService;
     private final UserService userService;
+    private final ZoneId businessZone;
 
     public TimesheetController(
         CurrentUserService currentUserService,
         MonthGridService monthGridService,
         TimesheetService timesheetService,
-        UserService userService
+        UserService userService,
+        @Value("${app.timezone:Europe/London}") String businessTimezone
     ) {
         this.currentUserService = currentUserService;
         this.monthGridService = monthGridService;
         this.timesheetService = timesheetService;
         this.userService = userService;
+        this.businessZone = ZoneId.of(businessTimezone);
     }
 
     @Get
     @View("timesheet")
-    public Map<String, Object> current(Principal principal) {
-        YearMonth now = YearMonth.now();
-        return view(principal, now.getYear(), now.getMonthValue());
+    public Map<String, Object> current(Principal principal, Session session) {
+        YearMonth now = YearMonth.now(businessZone);
+        return view(principal, now.getYear(), now.getMonthValue(), session);
     }
 
     @Get("/{year}/{month}")
     @View("timesheet")
-    public Map<String, Object> view(Principal principal, int year, int month) {
+    public Map<String, Object> view(Principal principal, int year, int month, Session session) {
         AppUser actor = currentUserService.requireCurrentUser(principal);
         MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, actor, year, month);
-        return timesheetModel(actor, actor, timesheet);
+        return timesheetModel(actor, actor, timesheet, session);
     }
 
     @Post("/{year}/{month}")
@@ -78,7 +85,7 @@ public class TimesheetController {
         return HttpResponse.seeOther(URI.create("/timesheets/" + year + "/" + month));
     }
 
-    public Map<String, Object> timesheetModel(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
+    public Map<String, Object> timesheetModel(AppUser actor, AppUser subject, MonthlyTimesheet timesheet, Session session) {
         MonthGridService.MonthGrid grid = monthGridService.build(timesheet.getYear(), timesheet.getMonth());
         Map<LocalDate, DailyTimeEntry> entriesByDate = new HashMap<>();
         Map<LocalDate, String> durationByDate = new HashMap<>();
@@ -103,11 +110,13 @@ public class TimesheetController {
 
         String baseAction = actionBase(actor, subject, timesheet);
 
-        return Map.ofEntries(
+        return ViewModel.withCsrf(Map.ofEntries(
             Map.entry("title", "Timesheet"),
             Map.entry("actor", actor),
             Map.entry("subject", subject),
             Map.entry("timesheet", timesheet),
+            Map.entry("expectedVersion", timesheet.getVersion()),
+            Map.entry("statusLabel", statusLabel(timesheet.getStatus())),
             Map.entry("grid", grid),
             Map.entry("entries", entriesByDate),
             Map.entry("durations", durationByDate),
@@ -122,7 +131,7 @@ public class TimesheetController {
             Map.entry("submitAction", baseAction + "/submit"),
             Map.entry("approveAction", baseAction + "/approve"),
             Map.entry("reopenAction", baseAction + "/reopen")
-        );
+        ), session);
     }
 
     public SaveTimesheetCommand formCommand(int year, int month, Map<String, String> formValues) {
@@ -134,7 +143,7 @@ public class TimesheetController {
                 formValues.getOrDefault("note_" + date, "")
             ))
             .toList();
-        return new SaveTimesheetCommand(year, month, null, entries);
+        return new SaveTimesheetCommand(year, month, parseExpectedVersion(formValues.get("expectedVersion")), entries);
     }
 
 
@@ -153,5 +162,21 @@ public class TimesheetController {
         return entriesByDate.values().stream()
             .mapToInt(DailyTimeEntry::getDurationMinutes)
             .sum();
+    }
+
+    private Long parseExpectedVersion(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return Long.valueOf(value);
+    }
+
+    private String statusLabel(TimesheetStatus status) {
+        return switch (status) {
+            case DRAFT -> "Draft";
+            case SUBMITTED -> "Submitted";
+            case APPROVED -> "Approved";
+        };
     }
 }

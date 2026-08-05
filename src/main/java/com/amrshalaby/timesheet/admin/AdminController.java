@@ -8,12 +8,14 @@ import com.amrshalaby.timesheet.user.UpdateUserCommand;
 import com.amrshalaby.timesheet.user.UserRepository;
 import com.amrshalaby.timesheet.user.UserRole;
 import com.amrshalaby.timesheet.user.UserService;
+import com.amrshalaby.timesheet.web.ViewModel;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.session.Session;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
@@ -41,14 +43,14 @@ public class AdminController {
 
     @Get("/users")
     @View("admin-users")
-    public Map<String, Object> users() {
-        return Map.of("title", "User administration", "users", userRepository.findAll());
+    public Map<String, Object> users(Session session) {
+        return ViewModel.withCsrf(Map.of("title", "User administration", "users", userRepository.findAll()), session);
     }
 
     @Get("/users/new")
     @View("admin-user-form")
-    public Map<String, Object> newUser() {
-        return Map.of("title", "Create user", "roles", UserRole.values());
+    public Map<String, Object> newUser(Session session) {
+        return ViewModel.withCsrf(Map.of("title", "Create user", "roles", UserRole.values()), session);
     }
 
     @Post("/users")
@@ -70,12 +72,12 @@ public class AdminController {
 
     @Get("/users/{userId}")
     @View("admin-user-form")
-    public Map<String, Object> editUser(Long userId) {
-        return Map.of(
+    public Map<String, Object> editUser(Long userId, Session session) {
+        return ViewModel.withCsrf(Map.of(
             "title", "Edit user",
             "user", userRepository.findById(userId).orElseThrow(),
             "roles", UserRole.values()
-        );
+        ), session);
     }
 
     @Post("/users/{userId}")
@@ -120,8 +122,8 @@ public class AdminController {
 
     @Get("/audit")
     @View("audit-log")
-    public Map<String, Object> audit() {
-        return Map.of("title", "Audit log", "events", auditEventRepository.findAll());
+    public Map<String, Object> audit(Session session) {
+        return ViewModel.withCsrf(Map.of("title", "Audit log", "events", auditEventRepository.findAll()), session);
     }
 
     private Long parseLong(String value) {

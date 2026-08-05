@@ -11,7 +11,7 @@
     <h1>Monthly timesheet</h1>
     <p>
         Employee: <strong th:text="${subject.displayName}">Employee</strong>
-        Status: <strong class="status-badge" th:text="${timesheet.status}">DRAFT</strong>
+        Status: <strong class="status-badge" th:text="${statusLabel}">Draft</strong>
     </p>
 
     <nav class="month-nav">
@@ -21,6 +21,8 @@
     </nav>
 
     <form method="post" th:action="${saveAction}">
+        <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
+        <input type="hidden" name="expectedVersion" th:value="${expectedVersion}">
         <div class="timesheet-scroll">
             <table class="timesheet-grid">
                 <thead>
@@ -86,12 +88,15 @@
             th:if="${canSubmit}"
             th:action="${submitAction}"
         >
+            <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
             <button type="submit">Submit</button>
         </form>
         <form method="post" th:if="${canApprove}" th:action="${approveAction}">
+            <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
             <button type="submit">Approve</button>
         </form>
         <form method="post" th:if="${canReopen}" th:action="${reopenAction}">
+            <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
             <label>
                 Reopen reason
                 <input name="reason" type="text" required>

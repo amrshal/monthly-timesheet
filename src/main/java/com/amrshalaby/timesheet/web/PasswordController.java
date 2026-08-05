@@ -10,6 +10,7 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
+import io.micronaut.session.Session;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
@@ -28,8 +29,8 @@ public class PasswordController {
 
     @Get("/change-password")
     @View("change-password")
-    public Map<String, Object> form() {
-        return Map.of("title", "Change password");
+    public Map<String, Object> form(Session session) {
+        return ViewModel.withCsrf(Map.of("title", "Change password"), session);
     }
 
     @Post("/change-password")

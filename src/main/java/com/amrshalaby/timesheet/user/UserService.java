@@ -6,7 +6,9 @@ import com.amrshalaby.timesheet.auth.PasswordHasher;
 import com.amrshalaby.timesheet.common.EmailNormalizer;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 @Singleton
 public class UserService {
@@ -34,6 +36,10 @@ public class UserService {
 
     public Optional<AppUser> findById(Long id) {
         return userRepository.findById(id);
+    }
+
+    public List<AppUser> findAll() {
+        return StreamSupport.stream(userRepository.findAll().spliterator(), false).toList();
     }
 
     @Transactional

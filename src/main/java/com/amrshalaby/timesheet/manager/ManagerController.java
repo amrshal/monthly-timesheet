@@ -8,23 +8,26 @@ import com.amrshalaby.timesheet.timesheet.TimesheetService;
 import com.amrshalaby.timesheet.timesheet.TimesheetStatus;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.AuthorisationService;
-import com.amrshalaby.timesheet.user.CreateUserCommand;
 import com.amrshalaby.timesheet.user.UserRepository;
-import com.amrshalaby.timesheet.user.UserRole;
 import com.amrshalaby.timesheet.user.UserService;
+import com.amrshalaby.timesheet.web.ViewModel;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.session.Session;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
+import java.time.YearMonth;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Controller("/manager")
@@ -58,52 +61,47 @@ public class ManagerController {
 
     @Get
     @View("manager-dashboard")
-    public Map<String, Object> dashboard(Principal principal) {
+    public Map<String, Object> dashboard(Principal principal, Session session) {
         AppUser actor = currentUserService.requireCurrentUser(principal);
         List<AppUser> employees = userRepository.findByManagerId(actor.getId());
-        Set<Long> employeeIds = employees.stream().map(AppUser::getId).collect(java.util.stream.Collectors.toSet());
-        List<MonthlyTimesheet> awaitingApproval = StreamSupport.stream(
+        Map<Long, AppUser> employeesById = employees.stream()
+            .collect(Collectors.toMap(AppUser::getId, Function.identity()));
+        Set<Long> employeeIds = employeesById.keySet();
+        List<ReviewTimesheet> awaitingApproval = StreamSupport.stream(
                 timesheetRepository.findByStatus(TimesheetStatus.SUBMITTED).spliterator(),
                 false
             )
             .filter(timesheet -> employeeIds.contains(timesheet.getUserId()))
+            .sorted(Comparator.comparing(MonthlyTimesheet::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+            .map(timesheet -> new ReviewTimesheet(timesheet, employeesById.get(timesheet.getUserId())))
             .toList();
 
-        return Map.of(
+        return ViewModel.withCsrf(Map.of(
             "title", "Manager dashboard",
             "employees", employees,
-            "awaitingApproval", awaitingApproval
-        );
+            "awaitingApproval", awaitingApproval,
+            "currentMonth", YearMonth.now()
+        ), session);
     }
 
     @Get("/users/new")
-    @View("manager-user-form")
-    public Map<String, Object> newEmployee() {
-        return Map.of("title", "Create employee");
-    }
-
-    @Post("/users")
-    public HttpResponse<?> createEmployee(Principal principal, @Body Map<String, String> form) {
-        AppUser actor = currentUserService.requireCurrentUser(principal);
-        userService.createUser(
-            actor,
-            new CreateUserCommand(
-                form.get("email"),
-                form.get("displayName"),
-                form.get("temporaryPassword"),
-                UserRole.EMPLOYEE,
-                actor.getId(),
-                true
-            )
-        );
+    public HttpResponse<?> newEmployee() {
         return HttpResponse.seeOther(URI.create("/manager"));
     }
 
     @Get("/timesheets/{timesheetId}")
     @View("timesheet")
-    public Map<String, Object> view(Principal principal, Long timesheetId) {
+    public Map<String, Object> view(Principal principal, Long timesheetId, Session session) {
         WithTimesheet context = context(principal, timesheetId);
-        return timesheetController.timesheetModel(context.actor(), context.subject(), context.timesheet());
+        return timesheetController.timesheetModel(context.actor(), context.subject(), context.timesheet(), session);
+    }
+
+    @Get("/employees/{userId}/timesheets/{year}/{month}")
+    public HttpResponse<?> openEmployeeMonth(Principal principal, Long userId, int year, int month) {
+        AppUser actor = currentUserService.requireCurrentUser(principal);
+        AppUser subject = userService.findById(userId).orElseThrow();
+        MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, subject, year, month);
+        return HttpResponse.seeOther(URI.create("/manager/timesheets/" + timesheet.getId()));
     }
 
     @Post("/timesheets/{timesheetId}")
@@ -141,9 +139,9 @@ public class ManagerController {
     }
 
     @Post("/timesheets/{timesheetId}/reopen")
-    public HttpResponse<?> reopen(Principal principal, Long timesheetId, @QueryValue String reason) {
+    public HttpResponse<?> reopen(Principal principal, Long timesheetId, @Body Map<String, String> form) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.reopen(context.actor(), context.subject(), context.timesheet(), reason);
+        timesheetService.reopen(context.actor(), context.subject(), context.timesheet(), form.get("reason"));
         return redirect(timesheetId);
     }
 
@@ -160,5 +158,8 @@ public class ManagerController {
     }
 
     private record WithTimesheet(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
+    }
+
+    private record ReviewTimesheet(MonthlyTimesheet timesheet, AppUser employee) {
     }
 }

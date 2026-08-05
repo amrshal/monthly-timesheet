@@ -40,7 +40,7 @@ public class InitialAdminBootstrap {
 
     @EventListener
     public void onStartup(ServerStartupEvent event) {
-        if (userRepository.countUsers() > 0 && userRepository.countByRole(UserRole.ADMIN) > 0) {
+        if (userRepository.countUsers() > 0) {
             return;
         }
         if (email.isBlank() || password.isBlank() || name.isBlank()) {

@@ -9,31 +9,32 @@
 <body>
 <main class="container">
     <h1>Manager dashboard</h1>
-    <p><a href="/manager/users/new">Create employee</a></p>
-
     <h2>Awaiting approval</h2>
     <table class="admin-table">
         <thead>
         <tr>
-            <th>Employee ID</th>
+            <th>Employee</th>
             <th>Month</th>
             <th>Submitted at</th>
             <th>Review</th>
         </tr>
         </thead>
         <tbody>
-        <tr th:each="timesheet : ${awaitingApproval}">
-            <td th:text="${timesheet.userId}">1</td>
-            <td th:text="${timesheet.year + '-' + timesheet.month}">2026-8</td>
-            <td th:text="${timesheet.submittedAt}">Submitted</td>
-            <td><a th:href="@{/manager/timesheets/{id}(id=${timesheet.id})}">Review</a></td>
+        <tr th:each="review : ${awaitingApproval}">
+            <td th:text="${review.employee.displayName}">Employee</td>
+            <td th:text="${review.timesheet.year + '-' + review.timesheet.month}">2026-8</td>
+            <td th:text="${review.timesheet.submittedAt}">Submitted</td>
+            <td><a th:href="@{/manager/timesheets/{id}(id=${review.timesheet.id})}">Review</a></td>
         </tr>
         </tbody>
     </table>
 
     <h2>Assigned employees</h2>
     <ul>
-        <li th:each="employee : ${employees}" th:text="${employee.displayName + ' (' + employee.email + ')'}">Employee</li>
+        <li th:each="employee : ${employees}">
+            <span th:text="${employee.displayName + ' (' + employee.email + ')'}">Employee</span>
+            <a th:href="@{/manager/employees/{id}/timesheets/{year}/{month}(id=${employee.id},year=${currentMonth.year},month=${currentMonth.monthValue})}">Open current month</a>
+        </li>
     </ul>
 </main>
 </body>

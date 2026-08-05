@@ -29,9 +29,11 @@
             <td>
                 <a th:href="@{/admin/users/{id}(id=${user.id})}">Edit</a>
                 <form th:if="${user.active}" th:action="@{/admin/users/{id}/disable(id=${user.id})}" method="post">
+                    <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
                     <button type="submit">Disable</button>
                 </form>
                 <form th:unless="${user.active}" th:action="@{/admin/users/{id}/reactivate(id=${user.id})}" method="post">
+                    <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
                     <button type="submit">Reactivate</button>
                 </form>
             </td>

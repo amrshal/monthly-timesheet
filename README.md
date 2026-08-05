@@ -17,8 +17,9 @@ Server-rendered monthly timesheet application for fewer than ten employees.
 ## Current implementation notes
 
 This branch lays down the application foundation: Micronaut configuration, Flyway schema,
-core duration/month-grid/status policy code, server-rendered placeholder pages, Docker assets,
-and focused unit tests. The remaining production workflows should continue in small slices
+core duration/month-grid/status policy code, server-rendered pages, Docker assets,
+basic user administration, authentication, employee/manager/admin timesheet workflows,
+and focused unit tests. The remaining production hardening should continue in small slices
 following `SPECIFICATION.md`.
 
 Decisions made while implementing without further input:
@@ -28,7 +29,9 @@ Decisions made while implementing without further input:
 - Styling: Bootstrap-compatible custom CSS variables plus small monthly-grid CSS.
 - HTMX: not used; vanilla JavaScript only where needed.
 - Privileged edit audit plan: one batch `TIMESHEET_PRIVILEGED_EDITED` event with a JSON `changed_days` array.
-- User registration: no public self-registration; admins and authorised managers create users.
+- User registration: no public self-registration; administrators create users.
+- Manager-created employees are disabled by default and can be enabled with
+  `APP_MANAGER_USER_CREATION_ENABLED=true` if the product decision changes.
 - Local Docker Compose is provided only for development.
 
 ## Local development
@@ -36,6 +39,9 @@ Decisions made while implementing without further input:
 ```bash
 mvn test
 ```
+
+The MySQL Testcontainers migration test runs automatically when Docker is available.
+When Docker is unavailable, JUnit skips that test and the regular unit tests still run.
 
 Run with local MySQL:
 
@@ -93,6 +99,14 @@ docker run -d \
 
 ## Known limitations in this implementation slice
 
-- Full authentication provider, password hashing, administrator/manager CRUD screens, monthly
-  save workflow, workflow POST actions, and integration/security tests are not yet complete.
-- Maven dependency resolution could not complete in the current environment because Maven Central returned HTTP 403 from the network tunnel.
+- Full field-level validation rendering is not complete; invalid submissions currently use a generic error page.
+- End-to-end security tests for CSRF, direct object-reference attacks, disabled users, and complete workflow scenarios are still incomplete.
+- Admin audit filtering is still basic and should be expanded to actor, subject, event type, timesheet, and date-range filters.
+- Docker image startup against a clean external MySQL instance still needs to be exercised before calling the application complete.
+
+## Backup and restore
+
+Use DigitalOcean Managed MySQL backups for routine recovery. For logical backups, run
+`mysqldump` from a trusted machine with TLS enabled and restore with the matching `mysql`
+client command. Do not store dumps containing production personal data or credentials in
+the repository.

@@ -8,16 +8,19 @@ import com.amrshalaby.timesheet.timesheet.TimesheetService;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.AuthorisationService;
 import com.amrshalaby.timesheet.user.UserService;
+import com.amrshalaby.timesheet.web.ViewModel;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.session.Session;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
+import java.time.YearMonth;
 import java.util.Map;
 
 @Controller("/admin/timesheets")
@@ -48,16 +51,39 @@ public class AdminTimesheetController {
 
     @Get
     @View("dashboard")
-    public Map<String, Object> search(Principal principal) {
-        authorisationService.requireAdministrator(currentUserService.requireCurrentUser(principal));
-        return Map.of("title", "Timesheet administration", "message", "Use filters to find employee timesheets.");
+    public Map<String, Object> search(
+        Principal principal,
+        @Nullable Long userId,
+        @Nullable Integer year,
+        @Nullable Integer month,
+        Session session
+    ) {
+        AppUser actor = currentUserService.requireCurrentUser(principal);
+        authorisationService.requireAdministrator(actor);
+        if (userId != null && year != null && month != null) {
+            AppUser subject = userService.findById(userId).orElseThrow();
+            MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, subject, year, month);
+            return ViewModel.withCsrf(Map.of(
+                "title", "Timesheet administration",
+                "message", "Timesheet ready.",
+                "timesheet", timesheet
+            ), session);
+        }
+        YearMonth now = YearMonth.now();
+        return ViewModel.withCsrf(Map.of(
+            "title", "Timesheet administration",
+            "message", "Select an employee and month to open or create a timesheet.",
+            "users", userService.findAll(),
+            "currentYear", now.getYear(),
+            "currentMonth", now.getMonthValue()
+        ), session);
     }
 
     @Get("/{timesheetId}")
     @View("timesheet")
-    public Map<String, Object> view(Principal principal, Long timesheetId) {
+    public Map<String, Object> view(Principal principal, Long timesheetId, Session session) {
         WithTimesheet context = context(principal, timesheetId);
-        return timesheetController.timesheetModel(context.actor(), context.subject(), context.timesheet());
+        return timesheetController.timesheetModel(context.actor(), context.subject(), context.timesheet(), session);
     }
 
     @Post("/{timesheetId}")
@@ -87,9 +113,9 @@ public class AdminTimesheetController {
     }
 
     @Post("/{timesheetId}/reopen")
-    public HttpResponse<?> reopen(Principal principal, Long timesheetId, @QueryValue String reason) {
+    public HttpResponse<?> reopen(Principal principal, Long timesheetId, @Body Map<String, String> form) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.reopen(context.actor(), context.subject(), context.timesheet(), reason);
+        timesheetService.reopen(context.actor(), context.subject(), context.timesheet(), form.get("reason"));
         return redirect(timesheetId);
     }
 

@@ -10,6 +10,7 @@
 <main class="container">
     <h1 th:text="${title}">User</h1>
     <form method="post" th:action="${user} == null ? @{/admin/users} : @{/admin/users/{id}(id=${user.id})}">
+        <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
         <label>
             Display name
             <input name="displayName" type="text" required th:value="${user} == null ? '' : ${user.displayName}">
@@ -44,6 +45,7 @@
     </form>
 
     <form th:if="${user} != null" th:action="@{/admin/users/{id}/reset-password(id=${user.id})}" method="post">
+        <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
         <label>
             Reset temporary password
             <input name="temporaryPassword" type="password" autocomplete="new-password" required>
