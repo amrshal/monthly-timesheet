@@ -14,12 +14,6 @@ Server-rendered monthly timesheet application for fewer than ten employees.
 - MySQL Testcontainers for integration testing
 - Docker
 
-## Version note
-
-This project intentionally targets Java 25 and Micronaut 5.1.0 based on the latest
-project direction, overriding the earlier Micronaut 4 / Java 21 wording in
-`SPECIFICATION.md`.
-
 ## Current implementation notes
 
 This branch lays down the application foundation: Micronaut configuration, Flyway schema,

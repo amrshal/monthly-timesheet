@@ -40,8 +40,8 @@ The first release does not include exports or a public API.
 
 Use:
 
-- Java 21 or later
-- Micronaut 4
+- Java 25
+- Micronaut 5
 - Micronaut Security
 - Micronaut Data JDBC
 - Thymeleaf
