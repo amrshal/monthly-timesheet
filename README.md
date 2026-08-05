@@ -23,7 +23,7 @@ project direction, overriding the earlier Micronaut 4 / Java 21 wording in
 ## Current implementation notes
 
 This branch lays down the application foundation: Micronaut configuration, Flyway schema,
-core duration/month-grid/status policy code, server-rendered application pages, Docker assets,
+core duration/month-grid/status policy code, server-rendered placeholder pages, Docker assets,
 and focused unit tests. The remaining production workflows should continue in small slices
 following `SPECIFICATION.md`.
 
@@ -97,27 +97,8 @@ docker run -d \
   monthly-timesheet:latest
 ```
 
-## Current implementation status and known limitations
+## Known limitations in this implementation slice
 
-Implemented in this branch:
-
-- Java 25 / Micronaut 5.1.0 build configuration.
-- Flyway schema for users, monthly timesheets, daily entries and audit events.
-- Database-backed user model and password hashing using PBKDF2-HMAC-SHA256.
-- Initial administrator bootstrapping from `INITIAL_ADMIN_*` variables.
-- Database authentication provider with login success/failure audit events.
-- Administrator user create/edit/disable/reactivate/reset-password service and screens.
-- Employee monthly grid, save and submit routes.
-- Manager/admin timesheet view, privileged save, submit, approve and reopen routes.
-- Transactional audit events for workflow actions and privileged edit diffs.
-- Focused tests for duration parsing, month grid, status policy, email normalisation,
-  password hashing and authorisation rules.
-
-Environment limitations in this workspace:
-
-- The installed Java runtime is Java 21, but the project now targets Java 25 by explicit
-  project direction.
-- Maven dependency resolution cannot complete because Maven Central returns HTTP 403 from
-  the network tunnel, so the Maven test/package lifecycle could not be verified here.
-- Docker image build, container startup, MySQL Testcontainers, and DigitalOcean TLS database
-  verification still need to run in an environment with Java 25, Docker and Maven Central access.
+- Full authentication provider, password hashing, administrator/manager CRUD screens, monthly
+  save workflow, workflow POST actions, and integration/security tests are not yet complete.
+- Maven dependency resolution could not complete in the current environment because Maven Central returned HTTP 403 from the network tunnel.
