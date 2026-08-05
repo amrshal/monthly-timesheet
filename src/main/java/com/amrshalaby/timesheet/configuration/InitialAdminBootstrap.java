@@ -4,6 +4,7 @@ import com.amrshalaby.timesheet.user.CreateUserCommand;
 import com.amrshalaby.timesheet.user.UserRepository;
 import com.amrshalaby.timesheet.user.UserRole;
 import com.amrshalaby.timesheet.user.UserService;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.runtime.event.annotation.EventListener;
 import io.micronaut.runtime.server.event.ServerStartupEvent;
@@ -12,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Singleton
+@Requires(notEnv = "test")
+@Requires(property = "app.initial-admin.enabled", notEquals = "false")
 public class InitialAdminBootstrap {
     private static final Logger LOG = LoggerFactory.getLogger(InitialAdminBootstrap.class);
 

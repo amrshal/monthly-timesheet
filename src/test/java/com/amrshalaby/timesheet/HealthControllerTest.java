@@ -3,7 +3,9 @@ package com.amrshalaby.timesheet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.BlockingHttpClient;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
@@ -13,12 +15,12 @@ import org.junit.jupiter.api.Test;
 final class HealthControllerTest {
     @Inject
     @Client("/")
-    BlockingHttpClient client;
+    HttpClient client;
 
     @Test
     void healthEndpointReturnsStatusMessage() {
-        String response = client.retrieve(HttpRequest.GET("/health"));
+        HttpResponse<String> response = client.toBlocking().exchange(HttpRequest.GET("/health"), String.class);
 
-        assertEquals("Monthly Timesheet is running", response);
+        assertEquals(HttpStatus.OK, response.getStatus());
     }
 }

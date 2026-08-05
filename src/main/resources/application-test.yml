@@ -5,3 +5,6 @@ flyway:
   datasources:
     default:
       enabled: false
+app:
+  initial-admin:
+    enabled: false

@@ -4,14 +4,12 @@ import com.amrshalaby.timesheet.audit.AuditEventType;
 import com.amrshalaby.timesheet.audit.AuditService;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.UserService;
-import io.micronaut.core.async.publisher.Publishers;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.security.authentication.AuthenticationRequest;
 import io.micronaut.security.authentication.AuthenticationResponse;
 import io.micronaut.security.authentication.provider.HttpRequestAuthenticationProvider;
 import jakarta.inject.Singleton;
 import java.util.List;
-import org.reactivestreams.Publisher;
 
 @Singleton
 public class DatabaseAuthenticationProvider implements HttpRequestAuthenticationProvider<Object> {
@@ -30,7 +28,7 @@ public class DatabaseAuthenticationProvider implements HttpRequestAuthentication
     }
 
     @Override
-    public Publisher<AuthenticationResponse> authenticate(
+    public AuthenticationResponse authenticate(
         HttpRequest<Object> requestContext,
         AuthenticationRequest<String, String> authenticationRequest
     ) {
@@ -42,7 +40,7 @@ public class DatabaseAuthenticationProvider implements HttpRequestAuthentication
             .orElseGet(() -> failure(email, requestContext));
     }
 
-    private Publisher<AuthenticationResponse> success(AppUser user, HttpRequest<Object> request) {
+    private AuthenticationResponse success(AppUser user, HttpRequest<Object> request) {
         auditService.record(
             user.getId(),
             user.getId(),
@@ -51,10 +49,10 @@ public class DatabaseAuthenticationProvider implements HttpRequestAuthentication
             user.getId(),
             requestDetails(request)
         );
-        return Publishers.just(AuthenticationResponse.success(user.getEmail(), List.of(user.getRole().name())));
+        return AuthenticationResponse.success(user.getEmail(), List.of(user.getRole().name()));
     }
 
-    private Publisher<AuthenticationResponse> failure(String email, HttpRequest<Object> request) {
+    private AuthenticationResponse failure(String email, HttpRequest<Object> request) {
         auditService.record(
             null,
             null,
@@ -63,7 +61,7 @@ public class DatabaseAuthenticationProvider implements HttpRequestAuthentication
             null,
             requestDetails(request)
         );
-        return Publishers.just(AuthenticationResponse.failure("Invalid email or password."));
+        return AuthenticationResponse.failure("Invalid email or password.");
     }
 
     private String requestDetails(HttpRequest<Object> request) {
