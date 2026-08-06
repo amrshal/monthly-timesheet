@@ -11,6 +11,7 @@ import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.AuthorisationService;
 import com.amrshalaby.timesheet.user.UserRole;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -99,6 +100,26 @@ class TimesheetServiceTest {
         assertEquals(0, entries.findByTimesheetId(10L).size());
     }
 
+    @Test
+    void approvalUsesAtomicSubmittedStatusCheck() {
+        InMemoryMonthlyTimesheetRepository timesheets = new InMemoryMonthlyTimesheetRepository();
+        InMemoryDailyTimeEntryRepository entries = new InMemoryDailyTimeEntryRepository();
+        TimesheetService service = service(timesheets, entries, new InMemoryAuditEventRepository());
+        MonthlyTimesheet timesheet = timesheet(10L, 2026, 8, 4L);
+        timesheet.setStatus(TimesheetStatus.SUBMITTED);
+        timesheets.save(timesheet);
+        timesheets.forceAtomicUpdateFailure();
+
+        assertThrows(
+            TimesheetConflictException.class,
+            () -> service.approve(
+                user(2L, UserRole.MANAGER, null),
+                user(1L, UserRole.EMPLOYEE, 2L),
+                timesheet
+            )
+        );
+    }
+
     private TimesheetService service(
         MonthlyTimesheetRepository timesheets,
         DailyTimeEntryRepository entries,
@@ -157,6 +178,56 @@ class TimesheetServiceTest {
         @Override
         public List<MonthlyTimesheet> findByStatus(TimesheetStatus status) {
             return timesheets.stream().filter(timesheet -> timesheet.getStatus() == status).toList();
+        }
+
+        private boolean atomicUpdateFailure;
+
+        void forceAtomicUpdateFailure() {
+            atomicUpdateFailure = true;
+        }
+
+        @Override
+        public long submitDraft(Long id, Instant submittedAt, Long submittedByUserId) {
+            return transition(id, TimesheetStatus.DRAFT, TimesheetStatus.SUBMITTED, timesheet -> {
+                timesheet.setSubmittedAt(submittedAt);
+                timesheet.setSubmittedByUserId(submittedByUserId);
+            });
+        }
+
+        @Override
+        public long approveSubmitted(Long id, Instant approvedAt, Long approvedByUserId) {
+            return transition(id, TimesheetStatus.SUBMITTED, TimesheetStatus.APPROVED, timesheet -> {
+                timesheet.setApprovedAt(approvedAt);
+                timesheet.setApprovedByUserId(approvedByUserId);
+            });
+        }
+
+        @Override
+        public long reopenToDraft(Long id, TimesheetStatus previousStatus) {
+            return transition(id, previousStatus, TimesheetStatus.DRAFT, timesheet -> {
+                timesheet.setSubmittedAt(null);
+                timesheet.setSubmittedByUserId(null);
+                timesheet.setApprovedAt(null);
+                timesheet.setApprovedByUserId(null);
+            });
+        }
+
+        private long transition(
+            Long id,
+            TimesheetStatus expectedStatus,
+            TimesheetStatus newStatus,
+            java.util.function.Consumer<MonthlyTimesheet> mutator
+        ) {
+            if (atomicUpdateFailure) {
+                return 0;
+            }
+            Optional<MonthlyTimesheet> timesheet = findById(id)
+                .filter(candidate -> candidate.getStatus() == expectedStatus);
+            timesheet.ifPresent(candidate -> {
+                candidate.setStatus(newStatus);
+                mutator.accept(candidate);
+            });
+            return timesheet.isPresent() ? 1 : 0;
         }
 
         @Override

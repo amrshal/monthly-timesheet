@@ -39,6 +39,12 @@ micronaut:
   views:
     thymeleaf:
       enabled: true
+  session:
+    max-inactive-interval: ${SESSION_TIMEOUT:30m}
+    http:
+      cookie-secure: ${SESSION_COOKIE_SECURE:true}
+      cookie-same-site: ${SESSION_COOKIE_SAME_SITE:Lax}
+      cookie-max-age: ${SESSION_COOKIE_MAX_AGE:30m}
 
 datasources:
   default:

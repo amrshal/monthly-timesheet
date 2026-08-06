@@ -41,8 +41,12 @@
                 <tbody>
                 <tr th:each="week, iter : ${grid.weeks}">
                     <th th:text="${iter.index + 1}">1</th>
-                    <td th:each="day : ${week.days}" th:classappend="${day.inMonth} ? '' : ' muted'">
+                    <td
+                        th:each="day : ${week.days}"
+                        th:class="${(day.inMonth ? '' : 'muted') + (day.date.equals(today) ? ' today-cell' : '')}"
+                    >
                         <span th:text="${#temporals.format(day.date, 'd E')}">1 Mon</span>
+                        <span class="today-marker" th:if="${day.date.equals(today)}">Today</span>
                         <label th:if="${day.inMonth}">
                             Duration
                             <input

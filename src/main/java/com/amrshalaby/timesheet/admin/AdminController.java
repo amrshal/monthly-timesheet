@@ -56,7 +56,11 @@ public class AdminController {
     @Get("/users/new")
     @View("admin-user-form")
     public Map<String, Object> newUser(Session session) {
-        return ViewModel.withCsrf(Map.of("title", "Create user", "roles", UserRole.values()), session);
+        return ViewModel.withCsrf(Map.of(
+            "title", "Create user",
+            "roles", UserRole.values(),
+            "managers", managers()
+        ), session);
     }
 
     @Post("/users")
@@ -82,7 +86,8 @@ public class AdminController {
         return ViewModel.withCsrf(Map.of(
             "title", "Edit user",
             "user", userRepository.findById(userId).orElseThrow(),
-            "roles", UserRole.values()
+            "roles", UserRole.values(),
+            "managers", managers()
         ), session);
     }
 
@@ -168,5 +173,11 @@ public class AdminController {
         }
 
         return Long.valueOf(value);
+    }
+
+    private List<AppUser> managers() {
+        return userService.findAll().stream()
+            .filter(user -> user.getRole() == UserRole.MANAGER && user.isActive())
+            .toList();
     }
 }

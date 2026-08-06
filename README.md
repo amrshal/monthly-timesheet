@@ -34,6 +34,10 @@ Decisions made while implementing without further input:
   `APP_MANAGER_USER_CREATION_ENABLED=true` if the product decision changes.
 - Password minimum length defaults to 12 characters and can be changed with
   `PASSWORD_MINIMUM_LENGTH`.
+- Users marked as requiring a password change are redirected to `/change-password`
+  until they set a new password.
+- Session timeout and cookie attributes are configurable through `SESSION_TIMEOUT`,
+  `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_SAME_SITE`, and `SESSION_COOKIE_MAX_AGE`.
 - Local Docker Compose is provided only for development.
 
 ## Local development
@@ -104,6 +108,7 @@ docker run -d \
 - Field-level validation currently covers monthly timesheet entry errors; user administration errors still use a generic error page.
 - End-to-end security tests for CSRF, direct object-reference attacks, disabled users, and complete workflow scenarios are still incomplete.
 - Admin audit filtering exists for actor, subject, event type, timesheet, and date range, but is intentionally simple and should move to repository queries if the log grows.
+- Manager timesheet filtering is intentionally simple and in-memory for this small-team first release.
 - Docker image startup against a clean external MySQL instance still needs to be exercised before calling the application complete.
 
 ## Backup and restore

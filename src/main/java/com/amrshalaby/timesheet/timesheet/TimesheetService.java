@@ -101,7 +101,9 @@ public class TimesheetService {
         timesheet.setStatus(TimesheetStatus.SUBMITTED);
         timesheet.setSubmittedAt(Instant.now());
         timesheet.setSubmittedByUserId(actor.getId());
-        timesheetRepository.update(timesheet);
+        if (timesheetRepository.submitDraft(timesheet.getId(), timesheet.getSubmittedAt(), actor.getId()) != 1) {
+            throw new TimesheetConflictException("This timesheet was changed before it could be submitted. Reload and try again.");
+        }
         auditService.record(
             actor.getId(),
             subject.getId(),
@@ -122,7 +124,9 @@ public class TimesheetService {
         timesheet.setStatus(TimesheetStatus.APPROVED);
         timesheet.setApprovedAt(Instant.now());
         timesheet.setApprovedByUserId(actor.getId());
-        timesheetRepository.update(timesheet);
+        if (timesheetRepository.approveSubmitted(timesheet.getId(), timesheet.getApprovedAt(), actor.getId()) != 1) {
+            throw new TimesheetConflictException("This timesheet was changed before it could be approved. Reload and try again.");
+        }
         auditService.record(
             actor.getId(),
             subject.getId(),
@@ -154,7 +158,9 @@ public class TimesheetService {
         timesheet.setSubmittedByUserId(null);
         timesheet.setApprovedAt(null);
         timesheet.setApprovedByUserId(null);
-        timesheetRepository.update(timesheet);
+        if (timesheetRepository.reopenToDraft(timesheet.getId(), previousStatus) != 1) {
+            throw new TimesheetConflictException("This timesheet was changed before it could be reopened. Reload and try again.");
+        }
         auditService.record(
             actor.getId(),
             subject.getId(),

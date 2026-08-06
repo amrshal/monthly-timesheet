@@ -26,8 +26,16 @@
             </select>
         </label>
         <label>
-            Manager ID
-            <input name="managerId" type="number" min="1">
+            Manager
+            <select name="managerId">
+                <option value="">No manager</option>
+                <option
+                    th:each="manager : ${managers}"
+                    th:value="${manager.id}"
+                    th:selected="${user != null and user.managerId == manager.id}"
+                    th:text="${manager.displayName + ' (' + manager.email + ')'}"
+                ></option>
+            </select>
         </label>
         <label th:if="${user} == null">
             Temporary password

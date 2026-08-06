@@ -40,6 +40,63 @@
             <a th:href="@{/manager/employees/{id}/timesheets/{year}/{month}(id=${employee.id},year=${currentMonth.year},month=${currentMonth.monthValue})}">Open current month</a>
         </li>
     </ul>
+
+    <h2>Other timesheets</h2>
+    <form method="get" action="/manager/timesheets" class="filter-form">
+        <label>
+            Employee
+            <select name="employeeId">
+                <option value="">Any employee</option>
+                <option
+                    th:each="employee : ${employees}"
+                    th:value="${employee.id}"
+                    th:selected="${selectedEmployeeId == employee.id}"
+                    th:text="${employee.displayName + ' (' + employee.email + ')'}"
+                ></option>
+            </select>
+        </label>
+        <label>
+            Year
+            <input name="year" type="number" min="2000" max="2100" th:value="${selectedYear}">
+        </label>
+        <label>
+            Month
+            <input name="month" type="number" min="1" max="12" th:value="${selectedMonth}">
+        </label>
+        <label>
+            Status
+            <select name="status">
+                <option value="">Any status</option>
+                <option
+                    th:each="status : ${statuses}"
+                    th:value="${status}"
+                    th:selected="${selectedStatus == status.name()}"
+                    th:text="${status}"
+                ></option>
+            </select>
+        </label>
+        <button type="submit">Filter</button>
+    </form>
+    <table class="admin-table">
+        <thead>
+        <tr>
+            <th>Employee</th>
+            <th>Month</th>
+            <th>Status</th>
+            <th>Total</th>
+            <th>Open</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${managedTimesheets}">
+            <td th:text="${row.employee.displayName}">Employee</td>
+            <td th:text="${row.timesheet.year + '-' + row.timesheet.month}">2026-8</td>
+            <td th:text="${row.timesheet.status}">DRAFT</td>
+            <td th:text="${row.total}">00:00</td>
+            <td><a th:href="@{/manager/timesheets/{id}(id=${row.timesheet.id})}">Open</a></td>
+        </tr>
+        </tbody>
+    </table>
 </main>
 </body>
 </html>

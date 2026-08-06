@@ -12,9 +12,11 @@ import com.amrshalaby.timesheet.timesheet.TimesheetValidationException;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.AuthorisationService;
 import com.amrshalaby.timesheet.user.UserRepository;
+import com.amrshalaby.timesheet.user.UserRole;
 import com.amrshalaby.timesheet.user.UserService;
 import com.amrshalaby.timesheet.web.ViewModel;
 import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -71,6 +73,30 @@ public class ManagerController {
     @Get
     @View("manager-dashboard")
     public Map<String, Object> dashboard(Principal principal, Session session) {
+        return dashboardModel(principal, null, null, null, null, session);
+    }
+
+    @Get("/timesheets")
+    @View("manager-dashboard")
+    public Map<String, Object> timesheets(
+        Principal principal,
+        @Nullable Long employeeId,
+        @Nullable Integer year,
+        @Nullable Integer month,
+        @Nullable TimesheetStatus status,
+        Session session
+    ) {
+        return dashboardModel(principal, employeeId, year, month, status, session);
+    }
+
+    private Map<String, Object> dashboardModel(
+        Principal principal,
+        Long employeeId,
+        Integer year,
+        Integer month,
+        TimesheetStatus status,
+        Session session
+    ) {
         AppUser actor = currentUserService.requireCurrentUser(principal);
         List<AppUser> employees = userRepository.findByManagerId(actor.getId());
         Map<Long, AppUser> employeesById = employees.stream()
@@ -89,12 +115,36 @@ public class ManagerController {
                 DurationFormat.format(totalMinutes(timesheet))
             ))
             .toList();
+        List<ManagedTimesheet> managedTimesheets = StreamSupport.stream(timesheetRepository.findAll().spliterator(), false)
+            .filter(timesheet -> employeeIds.contains(timesheet.getUserId()))
+            .filter(timesheet -> employeeId == null || employeeId.equals(timesheet.getUserId()))
+            .filter(timesheet -> year == null || year == timesheet.getYear())
+            .filter(timesheet -> month == null || month == timesheet.getMonth())
+            .filter(timesheet -> status == null || status == timesheet.getStatus())
+            .sorted(Comparator
+                .comparing(MonthlyTimesheet::getYear)
+                .thenComparing(MonthlyTimesheet::getMonth)
+                .reversed())
+            .map(timesheet -> new ManagedTimesheet(
+                timesheet,
+                employeesById.get(timesheet.getUserId()),
+                DurationFormat.format(totalMinutes(timesheet))
+            ))
+            .toList();
 
-        return ViewModel.withCsrf(Map.of(
-            "title", "Manager dashboard",
-            "employees", employees,
-            "awaitingApproval", awaitingApproval,
-            "currentMonth", YearMonth.now(businessZone)
+        YearMonth currentMonth = YearMonth.now(businessZone);
+        return ViewModel.withCsrf(Map.ofEntries(
+            Map.entry("title", "Manager dashboard"),
+            Map.entry("employees", employees),
+            Map.entry("awaitingApproval", awaitingApproval),
+            Map.entry("managedTimesheets", managedTimesheets),
+            Map.entry("statuses", TimesheetStatus.values()),
+            Map.entry("selectedEmployeeId", employeeId == null ? "" : employeeId),
+            Map.entry("selectedYear", year == null ? "" : year),
+            Map.entry("selectedMonth", month == null ? "" : month),
+            Map.entry("selectedStatus", status == null ? "" : status.name()),
+            Map.entry("currentMonth", currentMonth),
+            Map.entry("currentYear", currentMonth.getYear())
         ), session);
     }
 
@@ -209,6 +259,13 @@ public class ManagerController {
         MonthlyTimesheet timesheet,
         AppUser employee,
         String submittedBy,
+        String total
+    ) {
+    }
+
+    private record ManagedTimesheet(
+        MonthlyTimesheet timesheet,
+        AppUser employee,
         String total
     ) {
     }

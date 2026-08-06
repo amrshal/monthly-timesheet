@@ -110,6 +110,7 @@ public class TimesheetController {
         Map<String, String> fieldErrors
     ) {
         MonthGridService.MonthGrid grid = monthGridService.build(timesheet.getYear(), timesheet.getMonth());
+        LocalDate today = LocalDate.now(businessZone);
         Map<LocalDate, DailyTimeEntry> entriesByDate = new HashMap<>();
         Map<LocalDate, String> durationByDate = new HashMap<>();
         Map<LocalDate, String> noteByDate = new HashMap<>();
@@ -147,6 +148,7 @@ public class TimesheetController {
             Map.entry("expectedVersion", timesheet.getVersion()),
             Map.entry("statusLabel", statusLabel(timesheet.getStatus())),
             Map.entry("grid", grid),
+            Map.entry("today", today),
             Map.entry("entries", entriesByDate),
             Map.entry("durations", durationByDate),
             Map.entry("notes", noteByDate),
