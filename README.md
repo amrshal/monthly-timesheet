@@ -18,9 +18,9 @@ Server-rendered monthly timesheet application for fewer than ten employees.
 
 This branch lays down the application foundation: Micronaut configuration, Flyway schema,
 core duration/month-grid/status policy code, server-rendered pages, Docker assets,
-basic user administration, authentication, employee/manager/admin timesheet workflows,
-and focused unit tests. The remaining production hardening should continue in small slices
-following `SPECIFICATION.md`.
+basic user administration with field-level validation, authentication, employee/manager/admin
+timesheet workflows, audit browsing, and focused unit tests. The remaining production hardening
+should continue in small slices following `SPECIFICATION.md`.
 
 Decisions made while implementing without further input:
 
@@ -103,13 +103,13 @@ docker run -d \
   monthly-timesheet:latest
 ```
 
-## Known limitations in this implementation slice
+## Known limitations
 
-- Field-level validation currently covers monthly timesheet entry errors; user administration errors still use a generic error page.
-- End-to-end security tests for CSRF, direct object-reference attacks, disabled users, and complete workflow scenarios are still incomplete.
+- The automated suite includes focused unit/security coverage and a MySQL Testcontainers migration/constraint test, but complete browser-level end-to-end workflow tests are still incomplete.
+- The MySQL Testcontainers test requires Docker. In environments without Docker it is skipped by JUnit.
 - Admin audit filtering exists for actor, subject, event type, timesheet, and date range, but is intentionally simple and should move to repository queries if the log grows.
 - Manager timesheet filtering is intentionally simple and in-memory for this small-team first release.
-- Docker image startup against a clean external MySQL instance still needs to be exercised before calling the application complete.
+- Docker image startup against a clean external MySQL instance still needs to be exercised before calling the application production-complete.
 
 ## Backup and restore
 

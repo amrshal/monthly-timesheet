@@ -18,11 +18,26 @@ public class AuthorisationService {
         if (actor.getRole() == UserRole.ADMIN) {
             return true;
         }
+        if (actor.getId() != null && actor.getId().equals(subject.getId())) {
+            return true;
+        }
         if (actor.getRole() == UserRole.MANAGER) {
             return subject.getManagerId() != null && subject.getManagerId().equals(actor.getId());
         }
 
-        return actor.getId() != null && actor.getId().equals(subject.getId());
+        return false;
+    }
+
+    public boolean canReviewTimesheet(AppUser actor, AppUser subject) {
+        if (actor == null || subject == null || !actor.isActive()) {
+            return false;
+        }
+        if (actor.getRole() == UserRole.ADMIN) {
+            return true;
+        }
+        return actor.getRole() == UserRole.MANAGER
+            && subject.getManagerId() != null
+            && subject.getManagerId().equals(actor.getId());
     }
 
     public boolean canAdministerUsers(AppUser actor) {
@@ -36,6 +51,12 @@ public class AuthorisationService {
     public void requireTimesheetScope(AppUser actor, AppUser subject) {
         if (!canManageUser(actor, subject)) {
             throw new SecurityException("You are not authorised to access this employee.");
+        }
+    }
+
+    public void requireTimesheetReviewScope(AppUser actor, AppUser subject) {
+        if (!canReviewTimesheet(actor, subject)) {
+            throw new SecurityException("You are not authorised to review this employee.");
         }
     }
 

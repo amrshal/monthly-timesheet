@@ -9,45 +9,82 @@
 <body>
 <main class="container">
     <h1 th:text="${title}">User</h1>
+    <p class="field-error" th:if="${fieldErrors.containsKey('form')}" th:text="${fieldErrors.get('form')}">Form error</p>
     <form method="post" th:action="${user} == null ? @{/admin/users} : @{/admin/users/{id}(id=${user.id})}">
         <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
         <label>
             Display name
-            <input name="displayName" type="text" required th:value="${user} == null ? '' : ${user.displayName}">
+            <input
+                name="displayName"
+                type="text"
+                required
+                th:value="${form.containsKey('displayName') ? form.get('displayName') : (user == null ? '' : user.displayName)}"
+                th:attr="aria-invalid=${fieldErrors.containsKey('displayName')},aria-describedby=${fieldErrors.containsKey('displayName') ? 'error_displayName' : null}"
+            >
         </label>
+        <p class="field-error" id="error_displayName" th:if="${fieldErrors.containsKey('displayName')}" th:text="${fieldErrors.get('displayName')}">Display name error</p>
         <label>
             Email
-            <input name="email" type="email" required th:value="${user} == null ? '' : ${user.email}">
+            <input
+                name="email"
+                type="email"
+                required
+                th:value="${form.containsKey('email') ? form.get('email') : (user == null ? '' : user.email)}"
+                th:attr="aria-invalid=${fieldErrors.containsKey('email')},aria-describedby=${fieldErrors.containsKey('email') ? 'error_email' : null}"
+            >
         </label>
+        <p class="field-error" id="error_email" th:if="${fieldErrors.containsKey('email')}" th:text="${fieldErrors.get('email')}">Email error</p>
         <label>
             Role
             <select name="role" required>
-                <option th:each="role : ${roles}" th:value="${role}" th:text="${role}"></option>
+                <option
+                    th:each="role : ${roles}"
+                    th:value="${role}"
+                    th:selected="${form.containsKey('role') ? form.get('role') == role.name() : (user != null and user.role == role)}"
+                    th:text="${role}"
+                ></option>
             </select>
         </label>
+        <p class="field-error" id="error_role" th:if="${fieldErrors.containsKey('role')}" th:text="${fieldErrors.get('role')}">Role error</p>
         <label>
             Manager
-            <select name="managerId">
+            <select
+                name="managerId"
+                th:attr="aria-invalid=${fieldErrors.containsKey('managerId')},aria-describedby=${fieldErrors.containsKey('managerId') ? 'error_managerId' : null}"
+            >
                 <option value="">No manager</option>
                 <option
                     th:each="manager : ${managers}"
                     th:value="${manager.id}"
-                    th:selected="${user != null and user.managerId == manager.id}"
+                    th:selected="${form.containsKey('managerId') ? form.get('managerId') == manager.id.toString() : (user != null and user.managerId == manager.id)}"
                     th:text="${manager.displayName + ' (' + manager.email + ')'}"
                 ></option>
             </select>
         </label>
+        <p class="field-error" id="error_managerId" th:if="${fieldErrors.containsKey('managerId')}" th:text="${fieldErrors.get('managerId')}">Manager error</p>
         <label th:if="${user} == null">
             Temporary password
-            <input name="temporaryPassword" type="password" autocomplete="new-password" required>
+            <input
+                name="temporaryPassword"
+                type="password"
+                autocomplete="new-password"
+                required
+                th:attr="aria-invalid=${fieldErrors.containsKey('temporaryPassword')},aria-describedby=${fieldErrors.containsKey('temporaryPassword') ? 'error_temporaryPassword' : null}"
+            >
         </label>
+        <p class="field-error" id="error_temporaryPassword" th:if="${fieldErrors.containsKey('temporaryPassword')}" th:text="${fieldErrors.get('temporaryPassword')}">Password error</p>
         <label th:if="${user} != null">
             Active
-            <input name="active" type="checkbox" value="true" th:checked="${user.active}">
+            <input name="active" type="checkbox" value="true" th:checked="${form.containsKey('active') ? form.get('active') == 'true' : user.active}">
         </label>
         <label>
             Require password change
-            <input name="mustChangePassword" type="checkbox" value="true" checked>
+            <input
+                name="mustChangePassword"
+                type="checkbox"
+                value="true"
+                th:checked="${form.containsKey('mustChangePassword') ? form.get('mustChangePassword') == 'true' : (user == null or user.mustChangePassword)}"
+            >
         </label>
         <button type="submit">Save user</button>
     </form>

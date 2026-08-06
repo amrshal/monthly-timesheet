@@ -74,11 +74,11 @@
         <tbody>
         <tr th:each="event : ${events}">
             <td th:text="${event.eventTime}">Time</td>
-            <td th:text="${event.actorUserId}">Actor</td>
-            <td th:text="${event.subjectUserId}">Subject</td>
+            <td th:text="${event.actor}">Actor</td>
+            <td th:text="${event.subject}">Subject</td>
             <td th:text="${event.eventType}">Event</td>
-            <td th:text="${event.entityType + ':' + event.entityId}">Entity</td>
-            <td><code th:text="${event.detailsJson}">{}</code></td>
+            <td th:text="${event.entity}">Entity</td>
+            <td><code th:text="${event.details}">{}</code></td>
         </tr>
         </tbody>
     </table>

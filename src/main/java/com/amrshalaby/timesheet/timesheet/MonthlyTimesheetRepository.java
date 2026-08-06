@@ -23,8 +23,9 @@ public interface MonthlyTimesheetRepository extends CrudRepository<MonthlyTimesh
             version = version + 1
         WHERE id = :id
           AND status = 'DRAFT'
+          AND version = :expectedVersion
         """)
-    long submitDraft(Long id, Instant submittedAt, Long submittedByUserId);
+    long submitDraft(Long id, Instant submittedAt, Long submittedByUserId, Long expectedVersion);
 
     @Query("""
         UPDATE monthly_timesheet
@@ -35,8 +36,9 @@ public interface MonthlyTimesheetRepository extends CrudRepository<MonthlyTimesh
             version = version + 1
         WHERE id = :id
           AND status = 'SUBMITTED'
+          AND version = :expectedVersion
         """)
-    long approveSubmitted(Long id, Instant approvedAt, Long approvedByUserId);
+    long approveSubmitted(Long id, Instant approvedAt, Long approvedByUserId, Long expectedVersion);
 
     @Query("""
         UPDATE monthly_timesheet
@@ -49,6 +51,7 @@ public interface MonthlyTimesheetRepository extends CrudRepository<MonthlyTimesh
             version = version + 1
         WHERE id = :id
           AND status = :previousStatus
+          AND version = :expectedVersion
         """)
-    long reopenToDraft(Long id, TimesheetStatus previousStatus);
+    long reopenToDraft(Long id, TimesheetStatus previousStatus, Long expectedVersion);
 }

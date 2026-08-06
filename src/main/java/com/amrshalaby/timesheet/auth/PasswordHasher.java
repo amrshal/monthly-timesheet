@@ -1,5 +1,7 @@
 package com.amrshalaby.timesheet.auth;
 
+import io.micronaut.context.annotation.Value;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -17,6 +19,16 @@ public class PasswordHasher {
     private static final int SALT_LENGTH_BYTES = 16;
 
     private final SecureRandom secureRandom = new SecureRandom();
+    private final int minimumPasswordLength;
+
+    @Inject
+    public PasswordHasher(@Value("${app.password.minimum-length:12}") int minimumPasswordLength) {
+        this.minimumPasswordLength = minimumPasswordLength;
+    }
+
+    PasswordHasher() {
+        this(12);
+    }
 
     public String hash(String password) {
         validatePassword(password);
@@ -48,8 +60,8 @@ public class PasswordHasher {
     }
 
     private void validatePassword(String password) {
-        if (password == null || password.length() < 12) {
-            throw new IllegalArgumentException("Password must be at least 12 characters long.");
+        if (password == null || password.length() < minimumPasswordLength) {
+            throw new IllegalArgumentException("Password must be at least " + minimumPasswordLength + " characters long.");
         }
     }
 

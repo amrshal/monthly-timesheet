@@ -1,9 +1,11 @@
 package com.amrshalaby.timesheet.timesheet;
 
 import com.amrshalaby.timesheet.audit.AuditService;
+import com.amrshalaby.timesheet.audit.AuditViewService;
 import com.amrshalaby.timesheet.auth.CurrentUserService;
 import com.amrshalaby.timesheet.common.DurationFormat;
 import com.amrshalaby.timesheet.user.AppUser;
+import com.amrshalaby.timesheet.user.AuthorisationService;
 import com.amrshalaby.timesheet.user.UserService;
 import com.amrshalaby.timesheet.web.ViewModel;
 import io.micronaut.http.HttpResponse;
@@ -34,7 +36,9 @@ public class TimesheetController {
     private final MonthGridService monthGridService;
     private final TimesheetService timesheetService;
     private final UserService userService;
+    private final AuthorisationService authorisationService;
     private final AuditService auditService;
+    private final AuditViewService auditViewService;
     private final ZoneId businessZone;
 
     public TimesheetController(
@@ -42,14 +46,18 @@ public class TimesheetController {
         MonthGridService monthGridService,
         TimesheetService timesheetService,
         UserService userService,
+        AuthorisationService authorisationService,
         AuditService auditService,
+        AuditViewService auditViewService,
         @Value("${app.timezone:Europe/London}") String businessTimezone
     ) {
         this.currentUserService = currentUserService;
         this.monthGridService = monthGridService;
         this.timesheetService = timesheetService;
         this.userService = userService;
+        this.authorisationService = authorisationService;
         this.auditService = auditService;
+        this.auditViewService = auditViewService;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -90,10 +98,10 @@ public class TimesheetController {
     }
 
     @Post("/{year}/{month}/submit")
-    public HttpResponse<?> submit(Principal principal, int year, int month) {
+    public HttpResponse<?> submit(Principal principal, int year, int month, @Body Map<String, String> formValues) {
         AppUser actor = currentUserService.requireCurrentUser(principal);
         MonthlyTimesheet timesheet = timesheetService.getOrCreate(actor, actor, year, month);
-        timesheetService.submit(actor, actor, timesheet);
+        timesheetService.submit(actor, actor, timesheet, parseExpectedVersion(formValues.get("expectedVersion")));
         return HttpResponse.seeOther(URI.create("/timesheets/" + year + "/" + month));
     }
 
@@ -135,10 +143,10 @@ public class TimesheetController {
         }
 
         boolean self = actor.getId().equals(subject.getId());
-        boolean privileged = actor.getRole() == com.amrshalaby.timesheet.user.UserRole.MANAGER
-            || actor.getRole() == com.amrshalaby.timesheet.user.UserRole.ADMIN;
+        boolean reviewer = authorisationService.canReviewTimesheet(actor, subject);
 
         String baseAction = actionBase(actor, subject, timesheet);
+        boolean zeroHourMonth = monthlyTotal(entriesByDate) == 0;
 
         return ViewModel.withCsrf(Map.ofEntries(
             Map.entry("title", "Timesheet"),
@@ -156,11 +164,12 @@ public class TimesheetController {
             Map.entry("weeklyTotals", weeklyTotals),
             Map.entry("monthlyTotal", DurationFormat.format(monthlyTotal(entriesByDate))),
             Map.entry("recordedDays", entriesByDate.size()),
-            Map.entry("auditEvents", auditService.findForTimesheet(subject.getId(), timesheet.getId())),
-            Map.entry("canEdit", StatusTransitionPolicy.employeeCanEdit(timesheet.getStatus(), self) || privileged),
-            Map.entry("canSubmit", StatusTransitionPolicy.canSubmit(timesheet.getStatus(), actor.getRole(), true)),
-            Map.entry("canApprove", StatusTransitionPolicy.canApprove(timesheet.getStatus(), actor.getRole(), true)),
-            Map.entry("canReopen", StatusTransitionPolicy.canReopen(timesheet.getStatus(), actor.getRole(), true)),
+            Map.entry("zeroHourMonth", zeroHourMonth),
+            Map.entry("auditEvents", auditViewService.toViews(auditService.findForTimesheet(subject.getId(), timesheet.getId()))),
+            Map.entry("canEdit", StatusTransitionPolicy.employeeCanEdit(timesheet.getStatus(), self) || reviewer),
+            Map.entry("canSubmit", StatusTransitionPolicy.canSubmit(timesheet.getStatus(), actor.getRole(), self || reviewer)),
+            Map.entry("canApprove", StatusTransitionPolicy.canApprove(timesheet.getStatus(), actor.getRole(), reviewer)),
+            Map.entry("canReopen", StatusTransitionPolicy.canReopen(timesheet.getStatus(), actor.getRole(), reviewer)),
             Map.entry("saveAction", baseAction),
             Map.entry("submitAction", baseAction + "/submit"),
             Map.entry("approveAction", baseAction + "/approve"),
@@ -180,9 +189,13 @@ public class TimesheetController {
         return new SaveTimesheetCommand(year, month, parseExpectedVersion(formValues.get("expectedVersion")), entries);
     }
 
+    public Long expectedVersion(Map<String, String> formValues) {
+        return parseExpectedVersion(formValues.get("expectedVersion"));
+    }
+
 
     private String actionBase(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
-        if (actor.getRole() == com.amrshalaby.timesheet.user.UserRole.ADMIN && !actor.getId().equals(subject.getId())) {
+        if (actor.getRole() == com.amrshalaby.timesheet.user.UserRole.ADMIN) {
             return "/admin/timesheets/" + timesheet.getId();
         }
         if (actor.getRole() == com.amrshalaby.timesheet.user.UserRole.MANAGER && !actor.getId().equals(subject.getId())) {

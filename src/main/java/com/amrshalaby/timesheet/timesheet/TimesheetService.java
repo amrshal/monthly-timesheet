@@ -72,7 +72,7 @@ public class TimesheetService {
         MonthlyTimesheet timesheet,
         SaveTimesheetCommand command
     ) {
-        authorisationService.requireTimesheetScope(actor, subject);
+        authorisationService.requireTimesheetReviewScope(actor, subject);
         if (!StatusTransitionPolicy.privilegedCanEdit(actor.getRole(), true)) {
             throw new SecurityException("Privileged edit access is required.");
         }
@@ -93,15 +93,22 @@ public class TimesheetService {
 
     @Transactional
     public void submit(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
+        submit(actor, subject, timesheet, timesheet.getVersion());
+    }
+
+    @Transactional
+    public void submit(AppUser actor, AppUser subject, MonthlyTimesheet timesheet, Long expectedVersion) {
         authorisationService.requireTimesheetScope(actor, subject);
-        if (!StatusTransitionPolicy.canSubmit(timesheet.getStatus(), actor.getRole(), true)) {
+        boolean ownerOrReviewer = actor.getId().equals(subject.getId())
+            || authorisationService.canReviewTimesheet(actor, subject);
+        if (!StatusTransitionPolicy.canSubmit(timesheet.getStatus(), actor.getRole(), ownerOrReviewer)) {
             throw new SecurityException("Cannot submit timesheet");
         }
 
         timesheet.setStatus(TimesheetStatus.SUBMITTED);
         timesheet.setSubmittedAt(Instant.now());
         timesheet.setSubmittedByUserId(actor.getId());
-        if (timesheetRepository.submitDraft(timesheet.getId(), timesheet.getSubmittedAt(), actor.getId()) != 1) {
+        if (timesheetRepository.submitDraft(timesheet.getId(), timesheet.getSubmittedAt(), actor.getId(), expectedVersion) != 1) {
             throw new TimesheetConflictException("This timesheet was changed before it could be submitted. Reload and try again.");
         }
         auditService.record(
@@ -116,7 +123,12 @@ public class TimesheetService {
 
     @Transactional
     public void approve(AppUser actor, AppUser subject, MonthlyTimesheet timesheet) {
-        authorisationService.requireTimesheetScope(actor, subject);
+        approve(actor, subject, timesheet, timesheet.getVersion());
+    }
+
+    @Transactional
+    public void approve(AppUser actor, AppUser subject, MonthlyTimesheet timesheet, Long expectedVersion) {
+        authorisationService.requireTimesheetReviewScope(actor, subject);
         if (!StatusTransitionPolicy.canApprove(timesheet.getStatus(), actor.getRole(), true)) {
             throw new SecurityException("Cannot approve timesheet");
         }
@@ -124,7 +136,7 @@ public class TimesheetService {
         timesheet.setStatus(TimesheetStatus.APPROVED);
         timesheet.setApprovedAt(Instant.now());
         timesheet.setApprovedByUserId(actor.getId());
-        if (timesheetRepository.approveSubmitted(timesheet.getId(), timesheet.getApprovedAt(), actor.getId()) != 1) {
+        if (timesheetRepository.approveSubmitted(timesheet.getId(), timesheet.getApprovedAt(), actor.getId(), expectedVersion) != 1) {
             throw new TimesheetConflictException("This timesheet was changed before it could be approved. Reload and try again.");
         }
         auditService.record(
@@ -139,7 +151,12 @@ public class TimesheetService {
 
     @Transactional
     public void reopen(AppUser actor, AppUser subject, MonthlyTimesheet timesheet, String reason) {
-        authorisationService.requireTimesheetScope(actor, subject);
+        reopen(actor, subject, timesheet, reason, timesheet.getVersion());
+    }
+
+    @Transactional
+    public void reopen(AppUser actor, AppUser subject, MonthlyTimesheet timesheet, String reason, Long expectedVersion) {
+        authorisationService.requireTimesheetReviewScope(actor, subject);
         if (reason == null || reason.isBlank()) {
             throw new IllegalArgumentException("Reopening reason is required.");
         }
@@ -158,7 +175,7 @@ public class TimesheetService {
         timesheet.setSubmittedByUserId(null);
         timesheet.setApprovedAt(null);
         timesheet.setApprovedByUserId(null);
-        if (timesheetRepository.reopenToDraft(timesheet.getId(), previousStatus) != 1) {
+        if (timesheetRepository.reopenToDraft(timesheet.getId(), previousStatus, expectedVersion) != 1) {
             throw new TimesheetConflictException("This timesheet was changed before it could be reopened. Reload and try again.");
         }
         auditService.record(

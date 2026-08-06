@@ -139,3 +139,11 @@ a:focus {
     margin: 0.5rem 0;
     padding: 0.5rem 0.75rem;
 }
+
+.warning-detail {
+    background: #fff7ed;
+    border-left: 4px solid #c2410c;
+    font-weight: 700;
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.75rem;
+}

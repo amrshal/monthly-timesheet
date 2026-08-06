@@ -69,7 +69,7 @@ public class UserService {
             AuditEventType.USER_CREATED.name(),
             "user",
             saved.getId(),
-            "{}"
+            userDetails(null, saved)
         );
         return saved;
     }
@@ -87,6 +87,10 @@ public class UserService {
 
         UserRole previousRole = user.getRole();
         Long previousManager = user.getManagerId();
+        String previousEmail = user.getEmail();
+        String previousDisplayName = user.getDisplayName();
+        boolean previousActive = user.isActive();
+        boolean previousMustChangePassword = user.isMustChangePassword();
         user.setEmail(EmailNormalizer.normalize(command.email()));
         user.setDisplayName(command.displayName().trim());
         user.setRole(command.role());
@@ -95,12 +99,46 @@ public class UserService {
         user.setMustChangePassword(command.mustChangePassword());
 
         AppUser saved = userRepository.update(user);
-        auditService.record(actor.getId(), saved.getId(), AuditEventType.USER_UPDATED.name(), "user", saved.getId(), "{}");
+        auditService.record(
+            actor.getId(),
+            saved.getId(),
+            AuditEventType.USER_UPDATED.name(),
+            "user",
+            saved.getId(),
+            userUpdateDetails(
+                previousEmail,
+                saved.getEmail(),
+                previousDisplayName,
+                saved.getDisplayName(),
+                previousRole,
+                saved.getRole(),
+                previousManager,
+                saved.getManagerId(),
+                previousActive,
+                saved.isActive(),
+                previousMustChangePassword,
+                saved.isMustChangePassword()
+            )
+        );
         if (previousRole != saved.getRole()) {
-            auditService.record(actor.getId(), saved.getId(), AuditEventType.USER_ROLE_CHANGED.name(), "user", saved.getId(), "{}");
+            auditService.record(
+                actor.getId(),
+                saved.getId(),
+                AuditEventType.USER_ROLE_CHANGED.name(),
+                "user",
+                saved.getId(),
+                simpleChangeDetails("role", previousRole.name(), saved.getRole().name())
+            );
         }
         if (!java.util.Objects.equals(previousManager, saved.getManagerId())) {
-            auditService.record(actor.getId(), saved.getId(), AuditEventType.USER_MANAGER_CHANGED.name(), "user", saved.getId(), "{}");
+            auditService.record(
+                actor.getId(),
+                saved.getId(),
+                AuditEventType.USER_MANAGER_CHANGED.name(),
+                "user",
+                saved.getId(),
+                simpleChangeDetails("manager_id", stringValue(previousManager), stringValue(saved.getManagerId()))
+            );
         }
 
         return saved;
@@ -142,7 +180,14 @@ public class UserService {
         user.setPasswordHash(passwordHasher.hash(temporaryPassword));
         user.setMustChangePassword(true);
         userRepository.update(user);
-        auditService.record(actor.getId(), user.getId(), AuditEventType.PASSWORD_RESET.name(), "user", user.getId(), "{}");
+        auditService.record(
+            actor.getId(),
+            user.getId(),
+            AuditEventType.PASSWORD_RESET.name(),
+            "user",
+            user.getId(),
+            "{\"must_change_password_after\":\"true\"}"
+        );
     }
 
     @Transactional
@@ -159,9 +204,17 @@ public class UserService {
         authorisationService.requireAdministrator(actor);
         AppUser user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        boolean previousActive = user.isActive();
         user.setActive(active);
         userRepository.update(user);
-        auditService.record(actor.getId(), user.getId(), eventType.name(), "user", user.getId(), "{}");
+        auditService.record(
+            actor.getId(),
+            user.getId(),
+            eventType.name(),
+            "user",
+            user.getId(),
+            simpleChangeDetails("active", String.valueOf(previousActive), String.valueOf(active))
+        );
     }
 
     private void validateCreateActor(AppUser actor, CreateUserCommand command) {
@@ -211,5 +264,72 @@ public class UserService {
             .ifPresent(existing -> {
                 throw new IllegalArgumentException("Email address is already in use.");
             });
+    }
+
+    private String userDetails(AppUser before, AppUser after) {
+        return "{"
+            + jsonField("email_before", before == null ? null : before.getEmail()) + ","
+            + jsonField("email_after", after.getEmail()) + ","
+            + jsonField("display_name_before", before == null ? null : before.getDisplayName()) + ","
+            + jsonField("display_name_after", after.getDisplayName()) + ","
+            + jsonField("role_before", before == null ? null : before.getRole().name()) + ","
+            + jsonField("role_after", after.getRole().name()) + ","
+            + jsonField("manager_id_before", before == null ? null : stringValue(before.getManagerId())) + ","
+            + jsonField("manager_id_after", stringValue(after.getManagerId())) + ","
+            + jsonField("active_before", before == null ? null : String.valueOf(before.isActive())) + ","
+            + jsonField("active_after", String.valueOf(after.isActive())) + ","
+            + jsonField("must_change_password_before", before == null ? null : String.valueOf(before.isMustChangePassword())) + ","
+            + jsonField("must_change_password_after", String.valueOf(after.isMustChangePassword()))
+            + "}";
+    }
+
+    private String userUpdateDetails(
+        String emailBefore,
+        String emailAfter,
+        String displayNameBefore,
+        String displayNameAfter,
+        UserRole roleBefore,
+        UserRole roleAfter,
+        Long managerBefore,
+        Long managerAfter,
+        boolean activeBefore,
+        boolean activeAfter,
+        boolean mustChangePasswordBefore,
+        boolean mustChangePasswordAfter
+    ) {
+        return "{"
+            + jsonField("email_before", emailBefore) + ","
+            + jsonField("email_after", emailAfter) + ","
+            + jsonField("display_name_before", displayNameBefore) + ","
+            + jsonField("display_name_after", displayNameAfter) + ","
+            + jsonField("role_before", roleBefore.name()) + ","
+            + jsonField("role_after", roleAfter.name()) + ","
+            + jsonField("manager_id_before", stringValue(managerBefore)) + ","
+            + jsonField("manager_id_after", stringValue(managerAfter)) + ","
+            + jsonField("active_before", String.valueOf(activeBefore)) + ","
+            + jsonField("active_after", String.valueOf(activeAfter)) + ","
+            + jsonField("must_change_password_before", String.valueOf(mustChangePasswordBefore)) + ","
+            + jsonField("must_change_password_after", String.valueOf(mustChangePasswordAfter))
+            + "}";
+    }
+
+    private String simpleChangeDetails(String field, String before, String after) {
+        return "{"
+            + jsonField("field", field) + ","
+            + jsonField("before", before) + ","
+            + jsonField("after", after)
+            + "}";
+    }
+
+    private String stringValue(Long value) {
+        return value == null ? null : value.toString();
+    }
+
+    private String jsonField(String name, String value) {
+        return "\"" + escapeJson(name) + "\":" + (value == null ? "null" : "\"" + escapeJson(value) + "\"");
+    }
+
+    private String escapeJson(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 }

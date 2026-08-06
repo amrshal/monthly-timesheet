@@ -120,23 +120,39 @@ public class AdminTimesheetController {
     }
 
     @Post("/{timesheetId}/submit")
-    public HttpResponse<?> submit(Principal principal, Long timesheetId) {
+    public HttpResponse<?> submit(Principal principal, Long timesheetId, @Body Map<String, String> formValues) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.submit(context.actor(), context.subject(), context.timesheet());
+        timesheetService.submit(
+            context.actor(),
+            context.subject(),
+            context.timesheet(),
+            timesheetController.expectedVersion(formValues)
+        );
         return redirect(timesheetId);
     }
 
     @Post("/{timesheetId}/approve")
-    public HttpResponse<?> approve(Principal principal, Long timesheetId) {
+    public HttpResponse<?> approve(Principal principal, Long timesheetId, @Body Map<String, String> formValues) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.approve(context.actor(), context.subject(), context.timesheet());
+        timesheetService.approve(
+            context.actor(),
+            context.subject(),
+            context.timesheet(),
+            timesheetController.expectedVersion(formValues)
+        );
         return redirect(timesheetId);
     }
 
     @Post("/{timesheetId}/reopen")
     public HttpResponse<?> reopen(Principal principal, Long timesheetId, @Body Map<String, String> form) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.reopen(context.actor(), context.subject(), context.timesheet(), form.get("reason"));
+        timesheetService.reopen(
+            context.actor(),
+            context.subject(),
+            context.timesheet(),
+            form.get("reason"),
+            timesheetController.expectedVersion(form)
+        );
         return redirect(timesheetId);
     }
 

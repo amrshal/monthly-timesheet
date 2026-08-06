@@ -47,7 +47,8 @@ public class DatabaseAuthenticationProvider implements HttpRequestAuthentication
             AuditEventType.LOGIN_SUCCEEDED.name(),
             "user",
             user.getId(),
-            requestDetails(request)
+            requestIp(request),
+            "{}"
         );
         return AuthenticationResponse.success(user.getEmail(), List.of(user.getRole().name()));
     }
@@ -59,12 +60,13 @@ public class DatabaseAuthenticationProvider implements HttpRequestAuthentication
             AuditEventType.LOGIN_FAILED.name(),
             "user",
             null,
-            requestDetails(request)
+            requestIp(request),
+            "{}"
         );
         return AuthenticationResponse.failure("Invalid email or password.");
     }
 
-    private String requestDetails(HttpRequest<Object> request) {
-        return "{\"ip_address\":\"" + request.getRemoteAddress().getAddress().getHostAddress() + "\"}";
+    private String requestIp(HttpRequest<Object> request) {
+        return request.getRemoteAddress().getAddress().getHostAddress();
     }
 }

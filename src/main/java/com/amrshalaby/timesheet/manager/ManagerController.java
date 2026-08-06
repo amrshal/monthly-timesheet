@@ -1,6 +1,7 @@
 package com.amrshalaby.timesheet.manager;
 
 import com.amrshalaby.timesheet.auth.CurrentUserService;
+import com.amrshalaby.timesheet.common.BusinessTimeFormatter;
 import com.amrshalaby.timesheet.common.DurationFormat;
 import com.amrshalaby.timesheet.timesheet.DailyTimeEntry;
 import com.amrshalaby.timesheet.timesheet.MonthlyTimesheet;
@@ -49,6 +50,7 @@ public class ManagerController {
     private final UserRepository userRepository;
     private final UserService userService;
     private final ZoneId businessZone;
+    private final BusinessTimeFormatter timeFormatter;
 
     public ManagerController(
         CurrentUserService currentUserService,
@@ -58,6 +60,7 @@ public class ManagerController {
         TimesheetController timesheetController,
         UserRepository userRepository,
         UserService userService,
+        BusinessTimeFormatter timeFormatter,
         @Value("${app.timezone:Europe/London}") String businessTimezone
     ) {
         this.currentUserService = currentUserService;
@@ -67,6 +70,7 @@ public class ManagerController {
         this.timesheetController = timesheetController;
         this.userRepository = userRepository;
         this.userService = userService;
+        this.timeFormatter = timeFormatter;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -112,6 +116,7 @@ public class ManagerController {
                 timesheet,
                 employeesById.get(timesheet.getUserId()),
                 submittedBy(timesheet),
+                timeFormatter.format(timesheet.getSubmittedAt()),
                 DurationFormat.format(totalMinutes(timesheet))
             ))
             .toList();
@@ -204,23 +209,39 @@ public class ManagerController {
     }
 
     @Post("/timesheets/{timesheetId}/submit")
-    public HttpResponse<?> submit(Principal principal, Long timesheetId) {
+    public HttpResponse<?> submit(Principal principal, Long timesheetId, @Body Map<String, String> formValues) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.submit(context.actor(), context.subject(), context.timesheet());
+        timesheetService.submit(
+            context.actor(),
+            context.subject(),
+            context.timesheet(),
+            timesheetController.expectedVersion(formValues)
+        );
         return redirect(timesheetId);
     }
 
     @Post("/timesheets/{timesheetId}/approve")
-    public HttpResponse<?> approve(Principal principal, Long timesheetId) {
+    public HttpResponse<?> approve(Principal principal, Long timesheetId, @Body Map<String, String> formValues) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.approve(context.actor(), context.subject(), context.timesheet());
+        timesheetService.approve(
+            context.actor(),
+            context.subject(),
+            context.timesheet(),
+            timesheetController.expectedVersion(formValues)
+        );
         return redirect(timesheetId);
     }
 
     @Post("/timesheets/{timesheetId}/reopen")
     public HttpResponse<?> reopen(Principal principal, Long timesheetId, @Body Map<String, String> form) {
         WithTimesheet context = context(principal, timesheetId);
-        timesheetService.reopen(context.actor(), context.subject(), context.timesheet(), form.get("reason"));
+        timesheetService.reopen(
+            context.actor(),
+            context.subject(),
+            context.timesheet(),
+            form.get("reason"),
+            timesheetController.expectedVersion(form)
+        );
         return redirect(timesheetId);
     }
 
@@ -259,6 +280,7 @@ public class ManagerController {
         MonthlyTimesheet timesheet,
         AppUser employee,
         String submittedBy,
+        String submittedAt,
         String total
     ) {
     }

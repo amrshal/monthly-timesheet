@@ -24,6 +24,16 @@ class AuthorisationServiceTest {
 
         assertTrue(service.canManageUser(manager, assigned));
         assertFalse(service.canManageUser(manager, unassigned));
+        assertTrue(service.canReviewTimesheet(manager, assigned));
+        assertFalse(service.canReviewTimesheet(manager, unassigned));
+    }
+
+    @Test
+    void managerCanAccessOwnTimesheetButCannotReviewIt() {
+        AppUser manager = user(1L, UserRole.MANAGER, null);
+
+        assertTrue(service.canManageUser(manager, manager));
+        assertFalse(service.canReviewTimesheet(manager, manager));
     }
 
     @Test

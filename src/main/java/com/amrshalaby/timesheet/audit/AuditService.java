@@ -23,6 +23,18 @@ public class AuditService {
         Long entityId,
         String detailsJson
     ) {
+        record(actorUserId, subjectUserId, eventType, entityType, entityId, null, detailsJson);
+    }
+
+    public void record(
+        Long actorUserId,
+        Long subjectUserId,
+        String eventType,
+        String entityType,
+        Long entityId,
+        String ipAddress,
+        String detailsJson
+    ) {
         AuditEvent event = new AuditEvent();
         event.setEventTime(Instant.now(Clock.systemUTC()));
         event.setActorUserId(actorUserId);
@@ -30,6 +42,7 @@ public class AuditService {
         event.setEventType(eventType);
         event.setEntityType(entityType);
         event.setEntityId(entityId);
+        event.setIpAddress(ipAddress);
         event.setDetailsJson(detailsJson);
         repository.save(event);
     }

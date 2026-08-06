@@ -1,6 +1,7 @@
 package com.amrshalaby.timesheet.database;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -82,12 +83,59 @@ class MySqlMigrationTest {
                     1, '2026-08-06', 1441, NOW(6), NOW(6)
                 )
                 """));
+            assertThrows(SQLException.class, () -> execute(connection, """
+                INSERT INTO daily_time_entry (
+                    timesheet_id, work_date, duration_minutes, created_at, updated_at
+                ) VALUES (
+                    1, '2026-08-05', 120, NOW(6), NOW(6)
+                )
+                """));
+            assertThrows(SQLException.class, () -> execute(connection, """
+                INSERT INTO monthly_timesheet (
+                    user_id, timesheet_year, timesheet_month, status, created_at, updated_at
+                ) VALUES (
+                    999, 2026, 9, 'DRAFT', NOW(6), NOW(6)
+                )
+                """));
+            assertThrows(SQLException.class, () -> execute(connection, """
+                INSERT INTO audit_event (
+                    event_time, actor_user_id, subject_user_id, event_type, entity_type, entity_id, details_json
+                ) VALUES (
+                    NOW(6), 1, 1, 'TIMESHEET_CREATED', 'monthly_timesheet', 1, 'not-json'
+                )
+                """));
+            assertEquals(1, executeUpdate(connection, """
+                UPDATE monthly_timesheet
+                SET status = 'SUBMITTED',
+                    submitted_at = NOW(6),
+                    submitted_by_user_id = 1,
+                    updated_at = NOW(6),
+                    version = version + 1
+                WHERE id = 1
+                  AND status = 'DRAFT'
+                """));
+            assertEquals(0, executeUpdate(connection, """
+                UPDATE monthly_timesheet
+                SET status = 'APPROVED',
+                    approved_at = NOW(6),
+                    approved_by_user_id = 1,
+                    updated_at = NOW(6),
+                    version = version + 1
+                WHERE id = 1
+                  AND status = 'DRAFT'
+                """));
         }
     }
 
     private static void execute(Connection connection, String sql) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
+        }
+    }
+
+    private static int executeUpdate(Connection connection, String sql) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            return statement.executeUpdate(sql);
         }
     }
 }

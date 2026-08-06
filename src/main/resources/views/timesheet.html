@@ -111,9 +111,10 @@
             method="post"
             th:if="${canSubmit}"
             th:action="${submitAction}"
-            th:attr="data-confirm-message=${'Submit ' + subject.displayName + ' for ' + grid.month + '? Total: ' + monthlyTotal + ', recorded days: ' + recordedDays + '. Employee editing will be locked.'}"
+            th:attr="data-confirm-message=${zeroHourMonth ? 'Submit zero-hour month for ' + subject.displayName + ' for ' + grid.month + '? This explicitly records no worked time. Employee editing will be locked.' : 'Submit ' + subject.displayName + ' for ' + grid.month + '? Total: ' + monthlyTotal + ', recorded days: ' + recordedDays + '. Employee editing will be locked.'}"
         >
             <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
+            <input type="hidden" name="expectedVersion" th:value="${expectedVersion}">
             <p class="confirmation-detail">
                 Submit <strong th:text="${subject.displayName}">Employee</strong>
                 for <strong th:text="${grid.month}">2026-08</strong>.
@@ -121,14 +122,28 @@
                 Recorded days: <strong th:text="${recordedDays}">0</strong>.
                 Employee editing will be locked.
             </p>
+            <p class="warning-detail" th:if="${zeroHourMonth}">
+                This is a zero-hour month. Submitting confirms that no worked time is recorded for this month.
+            </p>
             <button type="submit">Submit</button>
         </form>
         <form method="post" th:if="${canApprove}" th:action="${approveAction}" data-confirm-message="Approve this submitted timesheet?">
             <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
+            <input type="hidden" name="expectedVersion" th:value="${expectedVersion}">
+            <p class="confirmation-detail">
+                Approve <strong th:text="${subject.displayName}">Employee</strong>
+                for <strong th:text="${grid.month}">2026-08</strong>.
+                Total: <strong th:text="${monthlyTotal}">00:00</strong>.
+            </p>
             <button type="submit">Approve</button>
         </form>
         <form method="post" th:if="${canReopen}" th:action="${reopenAction}" data-confirm-message="Reopen this timesheet to Draft?">
             <input type="hidden" name="csrfToken" th:if="${csrfToken} != null" th:value="${csrfToken}">
+            <input type="hidden" name="expectedVersion" th:value="${expectedVersion}">
+            <p class="confirmation-detail">
+                Reopen <strong th:text="${subject.displayName}">Employee</strong>
+                for <strong th:text="${grid.month}">2026-08</strong> to Draft so the employee can edit it again.
+            </p>
             <label>
                 Reopen reason
                 <input name="reason" type="text" required>
@@ -151,9 +166,9 @@
             <tbody>
             <tr th:each="event : ${auditEvents}">
                 <td th:text="${event.eventTime}">Time</td>
-                <td th:text="${event.actorUserId}">Actor</td>
+                <td th:text="${event.actor}">Actor</td>
                 <td th:text="${event.eventType}">Event</td>
-                <td><code th:text="${event.detailsJson}">{}</code></td>
+                <td><code th:text="${event.details}">{}</code></td>
             </tr>
             </tbody>
         </table>

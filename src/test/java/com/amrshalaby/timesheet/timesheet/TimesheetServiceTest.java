@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.amrshalaby.timesheet.audit.AuditEvent;
 import com.amrshalaby.timesheet.audit.AuditEventRepository;
+import com.amrshalaby.timesheet.audit.AuditEventType;
 import com.amrshalaby.timesheet.audit.AuditService;
 import com.amrshalaby.timesheet.user.AppUser;
 import com.amrshalaby.timesheet.user.AuthorisationService;
@@ -120,6 +121,74 @@ class TimesheetServiceTest {
         );
     }
 
+    @Test
+    void managerCannotApproveOwnTimesheet() {
+        TimesheetService service = service(
+            new InMemoryMonthlyTimesheetRepository(),
+            new InMemoryDailyTimeEntryRepository(),
+            new InMemoryAuditEventRepository()
+        );
+        MonthlyTimesheet timesheet = timesheet(10L, 2026, 8, 4L);
+        timesheet.setStatus(TimesheetStatus.SUBMITTED);
+        AppUser manager = user(2L, UserRole.MANAGER, null);
+        timesheet.setUserId(manager.getId());
+
+        assertThrows(SecurityException.class, () -> service.approve(manager, manager, timesheet, 4L));
+    }
+
+    @Test
+    void staleWorkflowVersionIsRejected() {
+        InMemoryMonthlyTimesheetRepository timesheets = new InMemoryMonthlyTimesheetRepository();
+        TimesheetService service = service(
+            timesheets,
+            new InMemoryDailyTimeEntryRepository(),
+            new InMemoryAuditEventRepository()
+        );
+        MonthlyTimesheet timesheet = timesheet(10L, 2026, 8, 4L);
+        timesheet.setStatus(TimesheetStatus.SUBMITTED);
+        timesheets.save(timesheet);
+
+        assertThrows(
+            TimesheetConflictException.class,
+            () -> service.approve(
+                user(2L, UserRole.MANAGER, null),
+                user(1L, UserRole.EMPLOYEE, 2L),
+                timesheet,
+                3L
+            )
+        );
+    }
+
+    @Test
+    void privilegedEditOfSubmittedAssignedTimesheetKeepsStatusAndAuditsChanges() {
+        InMemoryMonthlyTimesheetRepository timesheets = new InMemoryMonthlyTimesheetRepository();
+        InMemoryDailyTimeEntryRepository entries = new InMemoryDailyTimeEntryRepository();
+        InMemoryAuditEventRepository auditEvents = new InMemoryAuditEventRepository();
+        TimesheetService service = service(timesheets, entries, auditEvents);
+        MonthlyTimesheet timesheet = timesheet(10L, 2026, 8, 4L);
+        timesheet.setStatus(TimesheetStatus.SUBMITTED);
+        entries.save(entry(20L, 10L, LocalDate.of(2026, 8, 5), 480, "old note"));
+
+        service.savePrivileged(
+            user(2L, UserRole.MANAGER, null),
+            user(1L, UserRole.EMPLOYEE, 2L),
+            timesheet,
+            new SaveTimesheetCommand(
+                2026,
+                8,
+                4L,
+                List.of(new DailyEntryCommand(LocalDate.of(2026, 8, 5), "07:30", "new note"))
+            )
+        );
+
+        assertEquals(TimesheetStatus.SUBMITTED, timesheet.getStatus());
+        assertEquals(AuditEventType.TIMESHEET_PRIVILEGED_EDITED.name(), auditEvents.events.getFirst().getEventType());
+        assertTrue(auditEvents.events.getFirst().getDetailsJson().contains("\"duration_before\":\"480\""));
+        assertTrue(auditEvents.events.getFirst().getDetailsJson().contains("\"duration_after\":\"450\""));
+        assertTrue(auditEvents.events.getFirst().getDetailsJson().contains("\"note_before\":\"old note\""));
+        assertTrue(auditEvents.events.getFirst().getDetailsJson().contains("\"note_after\":\"new note\""));
+    }
+
     private TimesheetService service(
         MonthlyTimesheetRepository timesheets,
         DailyTimeEntryRepository entries,
@@ -187,24 +256,24 @@ class TimesheetServiceTest {
         }
 
         @Override
-        public long submitDraft(Long id, Instant submittedAt, Long submittedByUserId) {
-            return transition(id, TimesheetStatus.DRAFT, TimesheetStatus.SUBMITTED, timesheet -> {
+        public long submitDraft(Long id, Instant submittedAt, Long submittedByUserId, Long expectedVersion) {
+            return transition(id, TimesheetStatus.DRAFT, expectedVersion, TimesheetStatus.SUBMITTED, timesheet -> {
                 timesheet.setSubmittedAt(submittedAt);
                 timesheet.setSubmittedByUserId(submittedByUserId);
             });
         }
 
         @Override
-        public long approveSubmitted(Long id, Instant approvedAt, Long approvedByUserId) {
-            return transition(id, TimesheetStatus.SUBMITTED, TimesheetStatus.APPROVED, timesheet -> {
+        public long approveSubmitted(Long id, Instant approvedAt, Long approvedByUserId, Long expectedVersion) {
+            return transition(id, TimesheetStatus.SUBMITTED, expectedVersion, TimesheetStatus.APPROVED, timesheet -> {
                 timesheet.setApprovedAt(approvedAt);
                 timesheet.setApprovedByUserId(approvedByUserId);
             });
         }
 
         @Override
-        public long reopenToDraft(Long id, TimesheetStatus previousStatus) {
-            return transition(id, previousStatus, TimesheetStatus.DRAFT, timesheet -> {
+        public long reopenToDraft(Long id, TimesheetStatus previousStatus, Long expectedVersion) {
+            return transition(id, previousStatus, expectedVersion, TimesheetStatus.DRAFT, timesheet -> {
                 timesheet.setSubmittedAt(null);
                 timesheet.setSubmittedByUserId(null);
                 timesheet.setApprovedAt(null);
@@ -215,6 +284,7 @@ class TimesheetServiceTest {
         private long transition(
             Long id,
             TimesheetStatus expectedStatus,
+            Long expectedVersion,
             TimesheetStatus newStatus,
             java.util.function.Consumer<MonthlyTimesheet> mutator
         ) {
@@ -222,10 +292,12 @@ class TimesheetServiceTest {
                 return 0;
             }
             Optional<MonthlyTimesheet> timesheet = findById(id)
-                .filter(candidate -> candidate.getStatus() == expectedStatus);
+                .filter(candidate -> candidate.getStatus() == expectedStatus)
+                .filter(candidate -> java.util.Objects.equals(candidate.getVersion(), expectedVersion));
             timesheet.ifPresent(candidate -> {
                 candidate.setStatus(newStatus);
                 mutator.accept(candidate);
+                candidate.setVersion(candidate.getVersion() + 1);
             });
             return timesheet.isPresent() ? 1 : 0;
         }
