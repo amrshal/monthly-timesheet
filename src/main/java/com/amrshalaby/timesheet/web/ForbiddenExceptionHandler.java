@@ -17,7 +17,7 @@ public class ForbiddenExceptionHandler implements ExceptionHandler<SecurityExcep
         return HttpResponse.status(HttpStatus.FORBIDDEN)
             .body(new ModelAndView<>("error", Map.of(
                 "title", "Access denied",
-                "message", exception.getMessage()
+                "message", "You are not authorised to perform this action."
             )));
     }
 }

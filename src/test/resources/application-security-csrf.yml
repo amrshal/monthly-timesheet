@@ -1,0 +1,12 @@
+micronaut:
+  security:
+    enabled: true
+    csrf:
+      enabled: true
+flyway:
+  datasources:
+    default:
+      enabled: false
+app:
+  initial-admin:
+    enabled: false

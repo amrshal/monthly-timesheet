@@ -105,7 +105,7 @@ docker run -d \
 
 ## Known limitations
 
-- The automated suite includes focused unit/security coverage and a MySQL Testcontainers migration/constraint test, but complete browser-level end-to-end workflow tests are still incomplete.
+- The automated suite includes focused unit/security coverage, HTTP-level workflow coverage, and a MySQL Testcontainers migration/constraint test. Browser-driver visual regression coverage is not included.
 - The MySQL Testcontainers test requires Docker. In environments without Docker it is skipped by JUnit.
 - Admin audit filtering exists for actor, subject, event type, timesheet, and date range, but is intentionally simple and should move to repository queries if the log grows.
 - Manager timesheet filtering is intentionally simple and in-memory for this small-team first release.

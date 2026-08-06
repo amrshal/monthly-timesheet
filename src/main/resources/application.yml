@@ -29,7 +29,7 @@ micronaut:
         access: isAuthenticated()
     csrf:
       enabled: true
-      secret-key: ${SESSION_SECRET:`local-development-secret-change-me`}
+      signature-key: ${SESSION_SECRET:`local-development-secret-change-me`}
     token:
       cookie:
         enabled: true
