@@ -249,6 +249,31 @@ class TimesheetServiceTest {
             return timesheets.stream().filter(timesheet -> timesheet.getStatus() == status).toList();
         }
 
+        @Override
+        public List<MonthlyTimesheet> findSubmittedForUsers(List<Long> userIds) {
+            return timesheets.stream()
+                .filter(timesheet -> userIds.contains(timesheet.getUserId()))
+                .filter(timesheet -> timesheet.getStatus() == TimesheetStatus.SUBMITTED)
+                .toList();
+        }
+
+        @Override
+        public List<MonthlyTimesheet> findManaged(
+            List<Long> userIds,
+            Long employeeId,
+            Integer year,
+            Integer month,
+            TimesheetStatus status
+        ) {
+            return timesheets.stream()
+                .filter(timesheet -> userIds.contains(timesheet.getUserId()))
+                .filter(timesheet -> employeeId == null || employeeId.equals(timesheet.getUserId()))
+                .filter(timesheet -> year == null || year == timesheet.getYear())
+                .filter(timesheet -> month == null || month == timesheet.getMonth())
+                .filter(timesheet -> status == null || status == timesheet.getStatus())
+                .toList();
+        }
+
         private boolean atomicUpdateFailure;
 
         void forceAtomicUpdateFailure() {
@@ -387,6 +412,11 @@ class TimesheetServiceTest {
         }
 
         @Override
+        public List<DailyTimeEntry> findByTimesheetIdIn(List<Long> timesheetIds) {
+            return entries.stream().filter(entry -> timesheetIds.contains(entry.getTimesheetId())).toList();
+        }
+
+        @Override
         public Optional<DailyTimeEntry> findByTimesheetIdAndWorkDate(Long timesheetId, LocalDate workDate) {
             return entries.stream()
                 .filter(entry -> entry.getTimesheetId().equals(timesheetId) && entry.getWorkDate().equals(workDate))
@@ -476,6 +506,27 @@ class TimesheetServiceTest {
         public List<AuditEvent> findBySubjectUserId(Long subjectUserId) {
             return events.stream()
                 .filter(event -> java.util.Objects.equals(event.getSubjectUserId(), subjectUserId))
+                .toList();
+        }
+
+        @Override
+        public List<AuditEvent> search(
+            Long actorUserId,
+            Long subjectUserId,
+            String eventType,
+            Long timesheetId,
+            Instant fromInclusive,
+            Instant toExclusive
+        ) {
+            return events.stream()
+                .filter(event -> actorUserId == null || actorUserId.equals(event.getActorUserId()))
+                .filter(event -> subjectUserId == null || subjectUserId.equals(event.getSubjectUserId()))
+                .filter(event -> eventType == null || eventType.isBlank() || eventType.equals(event.getEventType()))
+                .filter(event -> timesheetId == null
+                    || ("monthly_timesheet".equals(event.getEntityType()) && timesheetId.equals(event.getEntityId())))
+                .filter(event -> fromInclusive == null || !event.getEventTime().isBefore(fromInclusive))
+                .filter(event -> toExclusive == null || event.getEventTime().isBefore(toExclusive))
+                .limit(500)
                 .toList();
         }
 

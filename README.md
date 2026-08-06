@@ -107,8 +107,8 @@ docker run -d \
 
 - The automated suite includes focused unit/security coverage, HTTP-level workflow coverage, and a MySQL Testcontainers migration/constraint test. Browser-driver visual regression coverage is not included.
 - The MySQL Testcontainers test requires Docker. In environments without Docker it is skipped by JUnit.
-- Admin audit filtering exists for actor, subject, event type, timesheet, and date range, but is intentionally simple and should move to repository queries if the log grows.
-- Manager timesheet filtering is intentionally simple and in-memory for this small-team first release.
+- Admin audit filtering is performed through bounded repository queries for actor, subject, event type, timesheet, and date range.
+- Manager dashboard timesheet filtering is scoped in repository queries, with dashboard totals loaded from batched entry lookups.
 - Docker image startup against a clean external MySQL instance still needs to be exercised before calling the application production-complete.
 
 ## Backup and restore

@@ -387,6 +387,40 @@ final class TestMonthlyTimesheetRepository implements MonthlyTimesheetRepository
     }
 
     @Override
+    public List<MonthlyTimesheet> findSubmittedForUsers(List<Long> userIds) {
+        return timesheets.stream()
+            .filter(timesheet -> userIds.contains(timesheet.getUserId()))
+            .filter(timesheet -> timesheet.getStatus() == TimesheetStatus.SUBMITTED)
+            .sorted(Comparator.comparing(MonthlyTimesheet::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(MonthlyTimesheet::getId))
+            .map(this::copy)
+            .toList();
+    }
+
+    @Override
+    public List<MonthlyTimesheet> findManaged(
+        List<Long> userIds,
+        Long employeeId,
+        Integer year,
+        Integer month,
+        TimesheetStatus status
+    ) {
+        return timesheets.stream()
+            .filter(timesheet -> userIds.contains(timesheet.getUserId()))
+            .filter(timesheet -> employeeId == null || employeeId.equals(timesheet.getUserId()))
+            .filter(timesheet -> year == null || year == timesheet.getYear())
+            .filter(timesheet -> month == null || month == timesheet.getMonth())
+            .filter(timesheet -> status == null || status == timesheet.getStatus())
+            .sorted(Comparator
+                .comparing(MonthlyTimesheet::getYear)
+                .thenComparing(MonthlyTimesheet::getMonth)
+                .thenComparing(MonthlyTimesheet::getId)
+                .reversed())
+            .map(this::copy)
+            .toList();
+    }
+
+    @Override
     public long submitDraft(Long id, Instant submittedAt, Long submittedByUserId, Long expectedVersion) {
         return transition(id, TimesheetStatus.DRAFT, expectedVersion, TimesheetStatus.SUBMITTED, timesheet -> {
             timesheet.setSubmittedAt(submittedAt);
@@ -547,6 +581,11 @@ final class TestDailyTimeEntryRepository implements DailyTimeEntryRepository {
     }
 
     @Override
+    public List<DailyTimeEntry> findByTimesheetIdIn(List<Long> timesheetIds) {
+        return entries.stream().filter(entry -> timesheetIds.contains(entry.getTimesheetId())).toList();
+    }
+
+    @Override
     public Optional<DailyTimeEntry> findByTimesheetIdAndWorkDate(Long timesheetId, LocalDate workDate) {
         return entries.stream()
             .filter(entry -> entry.getTimesheetId().equals(timesheetId))
@@ -656,6 +695,30 @@ final class TestAuditEventRepository implements AuditEventRepository {
     @Override
     public List<AuditEvent> findBySubjectUserId(Long subjectUserId) {
         return events.stream().filter(event -> java.util.Objects.equals(event.getSubjectUserId(), subjectUserId)).toList();
+    }
+
+    @Override
+    public List<AuditEvent> search(
+        Long actorUserId,
+        Long subjectUserId,
+        String eventType,
+        Long timesheetId,
+        Instant fromInclusive,
+        Instant toExclusive
+    ) {
+        return events.stream()
+            .filter(event -> actorUserId == null || actorUserId.equals(event.getActorUserId()))
+            .filter(event -> subjectUserId == null || subjectUserId.equals(event.getSubjectUserId()))
+            .filter(event -> eventType == null || eventType.isBlank() || eventType.equals(event.getEventType()))
+            .filter(event -> timesheetId == null
+                || ("monthly_timesheet".equals(event.getEntityType()) && timesheetId.equals(event.getEntityId())))
+            .filter(event -> fromInclusive == null || !event.getEventTime().isBefore(fromInclusive))
+            .filter(event -> toExclusive == null || event.getEventTime().isBefore(toExclusive))
+            .sorted(Comparator.comparing(AuditEvent::getEventTime, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(AuditEvent::getId, Comparator.nullsLast(Comparator.naturalOrder()))
+                .reversed())
+            .limit(500)
+            .toList();
     }
 
     @Override

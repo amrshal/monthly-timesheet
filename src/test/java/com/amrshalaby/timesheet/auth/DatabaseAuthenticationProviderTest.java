@@ -13,6 +13,7 @@ import com.amrshalaby.timesheet.user.UserService;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.security.authentication.AuthenticationRequest;
 import io.micronaut.security.authentication.AuthenticationResponse;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -87,6 +88,27 @@ class DatabaseAuthenticationProviderTest {
         public List<AuditEvent> findBySubjectUserId(Long subjectUserId) {
             return events.stream()
                 .filter(event -> java.util.Objects.equals(event.getSubjectUserId(), subjectUserId))
+                .toList();
+        }
+
+        @Override
+        public List<AuditEvent> search(
+            Long actorUserId,
+            Long subjectUserId,
+            String eventType,
+            Long timesheetId,
+            Instant fromInclusive,
+            Instant toExclusive
+        ) {
+            return events.stream()
+                .filter(event -> actorUserId == null || actorUserId.equals(event.getActorUserId()))
+                .filter(event -> subjectUserId == null || subjectUserId.equals(event.getSubjectUserId()))
+                .filter(event -> eventType == null || eventType.isBlank() || eventType.equals(event.getEventType()))
+                .filter(event -> timesheetId == null
+                    || ("monthly_timesheet".equals(event.getEntityType()) && timesheetId.equals(event.getEntityId())))
+                .filter(event -> fromInclusive == null || !event.getEventTime().isBefore(fromInclusive))
+                .filter(event -> toExclusive == null || event.getEventTime().isBefore(toExclusive))
+                .limit(500)
                 .toList();
         }
 

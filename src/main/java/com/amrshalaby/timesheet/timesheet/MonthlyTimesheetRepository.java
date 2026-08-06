@@ -1,5 +1,6 @@
 package com.amrshalaby.timesheet.timesheet;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.jdbc.annotation.JdbcRepository;
 import io.micronaut.data.model.query.builder.sql.Dialect;
@@ -13,6 +14,33 @@ public interface MonthlyTimesheetRepository extends CrudRepository<MonthlyTimesh
     Optional<MonthlyTimesheet> findByUserIdAndYearAndMonth(Long userId, int year, int month);
 
     List<MonthlyTimesheet> findByStatus(TimesheetStatus status);
+
+    @Query("""
+        SELECT *
+        FROM monthly_timesheet
+        WHERE user_id IN (:userIds)
+          AND status = 'SUBMITTED'
+        ORDER BY submitted_at ASC, id ASC
+        """)
+    List<MonthlyTimesheet> findSubmittedForUsers(List<Long> userIds);
+
+    @Query("""
+        SELECT *
+        FROM monthly_timesheet
+        WHERE user_id IN (:userIds)
+          AND (:employeeId IS NULL OR user_id = :employeeId)
+          AND (:year IS NULL OR timesheet_year = :year)
+          AND (:month IS NULL OR timesheet_month = :month)
+          AND (:status IS NULL OR status = :status)
+        ORDER BY timesheet_year DESC, timesheet_month DESC, id DESC
+        """)
+    List<MonthlyTimesheet> findManaged(
+        List<Long> userIds,
+        @Nullable Long employeeId,
+        @Nullable Integer year,
+        @Nullable Integer month,
+        @Nullable TimesheetStatus status
+    );
 
     @Query("""
         UPDATE monthly_timesheet

@@ -11,5 +11,7 @@ import java.util.Optional;
 public interface DailyTimeEntryRepository extends CrudRepository<DailyTimeEntry, Long> {
     List<DailyTimeEntry> findByTimesheetId(Long timesheetId);
 
+    List<DailyTimeEntry> findByTimesheetIdIn(List<Long> timesheetIds);
+
     Optional<DailyTimeEntry> findByTimesheetIdAndWorkDate(Long timesheetId, LocalDate workDate);
 }

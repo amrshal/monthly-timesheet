@@ -4,6 +4,7 @@ import com.amrshalaby.timesheet.auth.CurrentUserService;
 import com.amrshalaby.timesheet.common.BusinessTimeFormatter;
 import com.amrshalaby.timesheet.common.DurationFormat;
 import com.amrshalaby.timesheet.timesheet.DailyTimeEntry;
+import com.amrshalaby.timesheet.timesheet.DailyTimeEntryRepository;
 import com.amrshalaby.timesheet.timesheet.MonthlyTimesheet;
 import com.amrshalaby.timesheet.timesheet.MonthlyTimesheetRepository;
 import com.amrshalaby.timesheet.timesheet.TimesheetController;
@@ -31,13 +32,10 @@ import java.net.URI;
 import java.security.Principal;
 import java.time.ZoneId;
 import java.time.YearMonth;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Controller("/manager")
 @Secured({"MANAGER", "ADMIN"})
@@ -45,6 +43,7 @@ public class ManagerController {
     private final CurrentUserService currentUserService;
     private final AuthorisationService authorisationService;
     private final MonthlyTimesheetRepository timesheetRepository;
+    private final DailyTimeEntryRepository entryRepository;
     private final TimesheetService timesheetService;
     private final TimesheetController timesheetController;
     private final UserRepository userRepository;
@@ -56,6 +55,7 @@ public class ManagerController {
         CurrentUserService currentUserService,
         AuthorisationService authorisationService,
         MonthlyTimesheetRepository timesheetRepository,
+        DailyTimeEntryRepository entryRepository,
         TimesheetService timesheetService,
         TimesheetController timesheetController,
         UserRepository userRepository,
@@ -66,6 +66,7 @@ public class ManagerController {
         this.currentUserService = currentUserService;
         this.authorisationService = authorisationService;
         this.timesheetRepository = timesheetRepository;
+        this.entryRepository = entryRepository;
         this.timesheetService = timesheetService;
         this.timesheetController = timesheetController;
         this.userRepository = userRepository;
@@ -105,35 +106,29 @@ public class ManagerController {
         List<AppUser> employees = userRepository.findByManagerId(actor.getId());
         Map<Long, AppUser> employeesById = employees.stream()
             .collect(Collectors.toMap(AppUser::getId, Function.identity()));
-        Set<Long> employeeIds = employeesById.keySet();
-        List<ReviewTimesheet> awaitingApproval = StreamSupport.stream(
-                timesheetRepository.findByStatus(TimesheetStatus.SUBMITTED).spliterator(),
-                false
-            )
-            .filter(timesheet -> employeeIds.contains(timesheet.getUserId()))
-            .sorted(Comparator.comparing(MonthlyTimesheet::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+        List<Long> scopedEmployeeIds = employees.stream().map(AppUser::getId).toList();
+        List<MonthlyTimesheet> submittedTimesheets = scopedEmployeeIds.isEmpty()
+            ? List.of()
+            : timesheetRepository.findSubmittedForUsers(scopedEmployeeIds);
+        List<MonthlyTimesheet> filteredTimesheets = scopedEmployeeIds.isEmpty()
+            ? List.of()
+            : timesheetRepository.findManaged(scopedEmployeeIds, employeeId, year, month, status);
+        Map<Long, Integer> totalMinutesByTimesheetId = totalsByTimesheetId(submittedTimesheets, filteredTimesheets);
+
+        List<ReviewTimesheet> awaitingApproval = submittedTimesheets.stream()
             .map(timesheet -> new ReviewTimesheet(
                 timesheet,
                 employeesById.get(timesheet.getUserId()),
                 submittedBy(timesheet),
                 timeFormatter.format(timesheet.getSubmittedAt()),
-                DurationFormat.format(totalMinutes(timesheet))
+                DurationFormat.format(totalMinutesByTimesheetId.getOrDefault(timesheet.getId(), 0))
             ))
             .toList();
-        List<ManagedTimesheet> managedTimesheets = StreamSupport.stream(timesheetRepository.findAll().spliterator(), false)
-            .filter(timesheet -> employeeIds.contains(timesheet.getUserId()))
-            .filter(timesheet -> employeeId == null || employeeId.equals(timesheet.getUserId()))
-            .filter(timesheet -> year == null || year == timesheet.getYear())
-            .filter(timesheet -> month == null || month == timesheet.getMonth())
-            .filter(timesheet -> status == null || status == timesheet.getStatus())
-            .sorted(Comparator
-                .comparing(MonthlyTimesheet::getYear)
-                .thenComparing(MonthlyTimesheet::getMonth)
-                .reversed())
+        List<ManagedTimesheet> managedTimesheets = filteredTimesheets.stream()
             .map(timesheet -> new ManagedTimesheet(
                 timesheet,
                 employeesById.get(timesheet.getUserId()),
-                DurationFormat.format(totalMinutes(timesheet))
+                DurationFormat.format(totalMinutesByTimesheetId.getOrDefault(timesheet.getId(), 0))
             ))
             .toList();
 
@@ -270,10 +265,23 @@ public class ManagerController {
             .orElse("Unknown user");
     }
 
-    private int totalMinutes(MonthlyTimesheet timesheet) {
-        return timesheetService.entries(timesheet.getId()).stream()
-            .mapToInt(DailyTimeEntry::getDurationMinutes)
-            .sum();
+    private Map<Long, Integer> totalsByTimesheetId(
+        List<MonthlyTimesheet> awaitingApproval,
+        List<MonthlyTimesheet> managedTimesheets
+    ) {
+        List<Long> timesheetIds = java.util.stream.Stream.concat(awaitingApproval.stream(), managedTimesheets.stream())
+            .map(MonthlyTimesheet::getId)
+            .distinct()
+            .toList();
+        if (timesheetIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return entryRepository.findByTimesheetIdIn(timesheetIds).stream()
+            .collect(Collectors.groupingBy(
+                DailyTimeEntry::getTimesheetId,
+                Collectors.summingInt(DailyTimeEntry::getDurationMinutes)
+            ));
     }
 
     private record ReviewTimesheet(

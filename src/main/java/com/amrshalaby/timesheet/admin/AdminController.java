@@ -23,13 +23,13 @@ import io.micronaut.views.ModelAndView;
 import io.micronaut.views.View;
 import java.net.URI;
 import java.security.Principal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.stream.StreamSupport;
 
 @Controller("/admin")
 @Secured("ADMIN")
@@ -176,17 +176,16 @@ public class AdminController {
         @Nullable LocalDate toDate,
         Session session
     ) {
-        List<AuditEvent> events = StreamSupport.stream(auditEventRepository.findAll().spliterator(), false)
-            .filter(event -> actorUserId == null || actorUserId.equals(event.getActorUserId()))
-            .filter(event -> subjectUserId == null || subjectUserId.equals(event.getSubjectUserId()))
-            .filter(event -> eventType == null || eventType.isBlank() || eventType.equals(event.getEventType()))
-            .filter(event -> timesheetId == null
-                || ("monthly_timesheet".equals(event.getEntityType()) && timesheetId.equals(event.getEntityId())))
-            .filter(event -> fromDate == null
-                || !event.getEventTime().isBefore(fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)))
-            .filter(event -> toDate == null
-                || event.getEventTime().isBefore(toDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)))
-            .toList();
+        Instant fromInclusive = fromDate == null ? null : fromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant toExclusive = toDate == null ? null : toDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        List<AuditEvent> events = auditEventRepository.search(
+            actorUserId,
+            subjectUserId,
+            eventType,
+            timesheetId,
+            fromInclusive,
+            toExclusive
+        );
         return ViewModel.withCsrf(Map.ofEntries(
             Map.entry("title", "Audit log"),
             Map.entry("events", auditViewService.toViews(events)),
